@@ -1,13 +1,18 @@
 import {
+  type DiscoverResponse,
   SEARCH_PAGE_SIZE,
   SearchQuerySchema,
   type SearchResponse,
   type SearchResult,
+  type SeasonDetails,
+  SeasonParamsSchema,
   type TitleDetails,
   TitleParamsSchema,
   tmdbBackdropUrl,
   tmdbPosterUrl,
+  tmdbStillUrl,
   tmdbTitleUrl,
+  toTmdbRating,
 } from '@seen/shared';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { ApiError } from '../errors.js';
@@ -67,6 +72,31 @@ function singlePage(pageData: ProviderSearchPage) {
   };
 }
 
+function toSearchResult(r: ProviderSearchResult, membership: Map<string, string>): SearchResult {
+  const itemId = membership.get(membershipKey(r.mediaType, r.tmdbId)) ?? null;
+  return {
+    tmdbId: r.tmdbId,
+    mediaType: r.mediaType,
+    title: r.title,
+    originalTitle: r.originalTitle,
+    releaseYear: releaseYear(r.releaseDate),
+    posterUrl: tmdbPosterUrl(r.posterPath),
+    overview: r.overview,
+    popularity: r.popularity,
+    tmdbRating: toTmdbRating(r.voteAverage, r.voteCount),
+    inLibrary: itemId !== null,
+    libraryItemId: itemId,
+  };
+}
+
+async function withMembership(
+  library: LibraryRepository,
+  results: ProviderSearchResult[],
+): Promise<SearchResult[]> {
+  const membership = await library.membership(results);
+  return results.map((r) => toSearchResult(r, membership));
+}
+
 export function searchRoutes(deps: SearchDeps): Hono<AppEnv> {
   const router = new Hono<AppEnv>();
 
@@ -85,25 +115,70 @@ export function searchRoutes(deps: SearchDeps): Hono<AppEnv> {
     } catch (err) {
       mapProviderError(err);
     }
-    const membership = await deps.library.membership(data.results);
-    const results: SearchResult[] = data.results.map((r) => {
-      const itemId = membership.get(membershipKey(r.mediaType, r.tmdbId)) ?? null;
-      return {
-        tmdbId: r.tmdbId,
-        mediaType: r.mediaType,
-        title: r.title,
-        originalTitle: r.originalTitle,
-        releaseYear: releaseYear(r.releaseDate),
-        posterUrl: tmdbPosterUrl(r.posterPath),
-        overview: r.overview,
-        popularity: r.popularity,
-        inLibrary: itemId !== null,
-        libraryItemId: itemId,
-      };
-    });
+    const results = await withMembership(deps.library, data.results);
     const body: SearchResponse = { results, page, hasMore: data.hasMore };
     return c.json(body, 200);
   });
+
+  router.get('/discover', deps.requireAuth, async (c) => {
+    let lists: [ProviderSearchResult[], ProviderSearchResult[], ProviderSearchResult[]];
+    try {
+      lists = await Promise.all([
+        deps.provider.trendingAll('week'),
+        deps.provider.popularMovies(),
+        deps.provider.popularTv(),
+      ]);
+    } catch (err) {
+      mapProviderError(err);
+    }
+    const [trending, popularMovies, popularTv] = lists.map((l) =>
+      l.slice(0, SEARCH_PAGE_SIZE),
+    ) as typeof lists;
+    const membership = await deps.library.membership([...trending, ...popularMovies, ...popularTv]);
+    const body: DiscoverResponse = {
+      trending: trending.map((r) => toSearchResult(r, membership)),
+      popularMovies: popularMovies.map((r) => toSearchResult(r, membership)),
+      popularTv: popularTv.map((r) => toSearchResult(r, membership)),
+    };
+    return c.json(body, 200);
+  });
+
+  router.get(
+    '/titles/tv/:tmdbId/seasons/:seasonNumber',
+    deps.requireAuth,
+    validate('param', SeasonParamsSchema),
+    async (c) => {
+      const { tmdbId, seasonNumber } = c.req.valid('param');
+      let season: Awaited<ReturnType<MetadataProvider['tvSeason']>>;
+      try {
+        season = await deps.provider.tvSeason(tmdbId, seasonNumber);
+      } catch (err) {
+        mapProviderError(err);
+      }
+      const body: SeasonDetails = {
+        tmdbId,
+        seasonNumber: season.seasonNumber,
+        name: season.name,
+        overview: season.overview,
+        airDate: season.airDate,
+        posterUrl: tmdbPosterUrl(season.posterPath),
+        episodeCount: season.episodes.length,
+        episodes: season.episodes
+          .slice()
+          .sort((a, b) => a.episodeNumber - b.episodeNumber)
+          .map((e) => ({
+            episodeNumber: e.episodeNumber,
+            name: e.name,
+            overview: e.overview,
+            airDate: e.airDate,
+            runtimeMinutes: e.runtimeMinutes,
+            stillUrl: tmdbStillUrl(e.stillPath),
+            tmdbRating: toTmdbRating(e.voteAverage, e.voteCount),
+          })),
+      };
+      return c.json(body, 200);
+    },
+  );
 
   router.get(
     '/titles/:mediaType/:tmdbId',
@@ -132,6 +207,7 @@ export function searchRoutes(deps: SearchDeps): Hono<AppEnv> {
         runtimeMinutes: details.runtimeMinutes,
         numberOfSeasons: details.numberOfSeasons,
         seasons: details.seasons,
+        tmdbRating: toTmdbRating(details.voteAverage, details.voteCount),
         tmdbUrl: tmdbTitleUrl(mediaType, tmdbId),
         rating: membership.rating,
         inLibrary: membership.inLibrary,

@@ -13,10 +13,29 @@ export const GenreSchema = z.object({
 });
 export type Genre = z.infer<typeof GenreSchema>;
 
+/** TMDB community rating: average out of 10 (null when nobody has voted) and the number of votes. */
+export const TmdbRatingSchema = z.object({
+  average: z.number().min(0).max(10).nullable(),
+  count: z.number().int().min(0),
+});
+export type TmdbRating = z.infer<typeof TmdbRatingSchema>;
+
+export function toTmdbRating(
+  average: number | null | undefined,
+  count: number | null | undefined,
+): TmdbRating {
+  const votes = count ?? 0;
+  return {
+    average: votes > 0 && average != null ? Math.round(average * 10) / 10 : null,
+    count: votes,
+  };
+}
+
 export const SeasonSchema = z.object({
   seasonNumber: z.number().int().min(0),
   name: z.string(),
   episodeCount: z.number().int().min(0),
+  airDate: z.string().nullable(),
   /** TMDB season 0 holds specials; flagged so the UI can label it. */
   isSpecials: z.boolean(),
 });
@@ -39,6 +58,7 @@ export const MediaItemSchema = z.object({
   genres: z.array(GenreSchema),
   runtimeMinutes: z.number().int().nullable(),
   numberOfSeasons: z.number().int().nullable(),
+  tmdbRating: TmdbRatingSchema,
   tmdbUrl: z.url(),
   createdAt: IsoTimestampSchema,
   updatedAt: IsoTimestampSchema,
@@ -69,6 +89,7 @@ export const TitleDetailsSchema = z
     numberOfSeasons: z.number().int().nullable(),
     /** Present for TV series only, ascending by season number. */
     seasons: z.array(SeasonSchema).nullable(),
+    tmdbRating: TmdbRatingSchema,
     tmdbUrl: z.url(),
     /** Displayed rating when the title is already in the library. */
     rating: z.number().int().nullable(),

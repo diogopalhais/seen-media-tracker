@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { MediaItemSchema, MediaTypeFilterSchema, MediaTypeSchema } from './media.js';
+import {
+  MediaItemSchema,
+  MediaTypeFilterSchema,
+  MediaTypeSchema,
+  TmdbRatingSchema,
+} from './media.js';
 import { RatingSchema } from './rating.js';
 import { WatchEntrySchema } from './watch.js';
 
@@ -26,6 +31,7 @@ export const LibraryItemSummarySchema = z.object({
   releaseYear: z.number().int().nullable(),
   posterUrl: z.url().nullable(),
   rating: RatingSchema.nullable(),
+  tmdbRating: TmdbRatingSchema,
   lastWatchedOn: z.string(),
   watchCount: z.number().int().min(1),
   lastSeason: z.number().int().nullable(),

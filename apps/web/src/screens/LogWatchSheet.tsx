@@ -27,7 +27,9 @@ export interface WatchTarget {
   numberOfSeasons: number | null;
 }
 
-export type SheetMode = { kind: 'create' } | { kind: 'edit'; entry: WatchEntry };
+export type SheetMode =
+  | { kind: 'create'; initialSeason?: number }
+  | { kind: 'edit'; entry: WatchEntry };
 
 export interface LogWatchSheetProps {
   open: boolean;
@@ -53,7 +55,12 @@ function initialState(mode: SheetMode): FormState {
       note: mode.entry.note ?? '',
     };
   }
-  return { watchedOn: todayLocalDateString(), rating: null, season: '', note: '' };
+  return {
+    watchedOn: todayLocalDateString(),
+    rating: null,
+    season: mode.initialSeason === undefined ? '' : String(mode.initialSeason),
+    note: '',
+  };
 }
 
 export function LogWatchSheet({ open, onOpenChange, target, mode, onSaved }: LogWatchSheetProps) {

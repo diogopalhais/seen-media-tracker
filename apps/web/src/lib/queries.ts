@@ -16,6 +16,8 @@ export const queryKeys = {
   search: (q: string, type: MediaTypeFilter) => ['search', q, type] as const,
   searchAll: ['search'] as const,
   title: (type: MediaType, id: number) => ['title', type, id] as const,
+  discover: ['discover'] as const,
+  season: (id: number, n: number) => ['season', id, n] as const,
 };
 
 export function useSessionQuery(enabled: boolean) {
@@ -68,6 +70,25 @@ export function useTitleQuery(type: MediaType | undefined, id: number | undefine
   });
 }
 
+export function useDiscoverQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.discover,
+    queryFn: api.discover,
+    enabled,
+    staleTime: 60 * 60_000,
+    retry: 1,
+  });
+}
+
+export function useSeasonQuery(tmdbId: number | undefined, seasonNumber: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.season(tmdbId ?? 0, seasonNumber ?? -1),
+    queryFn: () => api.season(tmdbId as number, seasonNumber as number),
+    enabled: tmdbId !== undefined && seasonNumber !== undefined,
+    staleTime: 60 * 60_000,
+  });
+}
+
 /** Everything that displays library state, so a single mutation refreshes grid, detail, search badges and title previews. */
 function useInvalidateLibrary() {
   const qc = useQueryClient();
@@ -75,6 +96,7 @@ function useInvalidateLibrary() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: queryKeys.libraryAll }),
       qc.invalidateQueries({ queryKey: queryKeys.searchAll }),
+      qc.invalidateQueries({ queryKey: queryKeys.discover }),
       item ? qc.invalidateQueries({ queryKey: queryKeys.libraryItem(item.id) }) : Promise.resolve(),
       item
         ? qc.invalidateQueries({ queryKey: queryKeys.title(item.mediaType, item.tmdbId) })

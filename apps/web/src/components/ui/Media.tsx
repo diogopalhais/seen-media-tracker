@@ -1,5 +1,5 @@
 import { FilmSlate, ImageBroken, Star, Television } from '@phosphor-icons/react';
-import { type MediaType, RATING_MAX } from '@seen/shared';
+import { type MediaType, RATING_MAX, type TmdbRating as TmdbRatingValue } from '@seen/shared';
 import { useState } from 'react';
 import { cn } from '../../lib/cn.js';
 
@@ -150,5 +150,45 @@ export function Backdrop({ src, children }: { src: string | null; children: Reac
       )}
       <div className={cn('safe-x flex gap-4', show ? '-mt-16' : 'pt-4')}>{children}</div>
     </>
+  );
+}
+
+const compactCount = new Intl.NumberFormat(undefined, {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
+/**
+ * Community (TMDB) rating: average out of 10 plus vote count. Deliberately quiet and monochrome so it
+ * never competes with the owner's own star rating.
+ */
+export function TmdbRating({
+  rating,
+  className,
+  showCount = true,
+  size = 'regular',
+}: {
+  rating: TmdbRatingValue;
+  className?: string;
+  showCount?: boolean;
+  size?: 'regular' | 'small';
+}) {
+  if (rating.average === null) return null;
+  return (
+    <span
+      role="img"
+      aria-label={`TMDB rating ${rating.average.toFixed(1)} out of 10 from ${rating.count} votes`}
+      className={cn(
+        'inline-flex items-center gap-1 tabular-nums text-label-secondary',
+        size === 'small' ? 'text-caption1' : 'text-footnote',
+        className,
+      )}
+    >
+      <span className="rounded-[3px] bg-[#01b4e4] px-[4px] py-[1px] text-[0.5625rem] font-bold leading-none tracking-wide text-[#0d253f]">
+        TMDB
+      </span>
+      <span className="font-semibold text-label">{rating.average.toFixed(1)}</span>
+      {showCount && rating.count > 0 && <span>· {compactCount.format(rating.count)}</span>}
+    </span>
   );
 }

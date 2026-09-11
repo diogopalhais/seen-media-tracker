@@ -1,14 +1,15 @@
-import { CheckCircle, MagnifyingGlass, SmileyMeh } from '@phosphor-icons/react';
+import { CheckCircle, SmileyMeh } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Banner } from '../components/ui/Banner.js';
 import { Button } from '../components/ui/Button.js';
-import { EmptyState, MediaTypeBadge, Poster } from '../components/ui/Media.js';
+import { EmptyState, MediaTypeBadge, Poster, TmdbRating } from '../components/ui/Media.js';
 import { Screen } from '../components/ui/NavBar.js';
+import { PosterRow } from '../components/ui/PosterRow.js';
 import { SearchField } from '../components/ui/SearchField.js';
 import { ListSkeleton } from '../components/ui/Skeleton.js';
 import { ApiError } from '../lib/api.js';
-import { useSearchQuery } from '../lib/queries.js';
+import { useDiscoverQuery, useSearchQuery } from '../lib/queries.js';
 
 const DEBOUNCE_MS = 400;
 
@@ -19,6 +20,8 @@ export function SearchScreen() {
   const [text, setText] = useState(savedQuery);
   const [debounced, setDebounced] = useState(savedQuery);
   const query = useSearchQuery(debounced, 'all');
+  const active = debounced.trim().length > 0;
+  const discover = useDiscoverQuery(!active);
 
   useEffect(() => {
     savedQuery = text;
@@ -30,7 +33,6 @@ export function SearchScreen() {
     return () => clearTimeout(t);
   }, [text]);
 
-  const active = debounced.trim().length > 0;
   const results = query.data?.results ?? [];
   const errorMessage =
     query.error instanceof ApiError ? query.error.message : query.error ? 'Search failed.' : null;
@@ -50,11 +52,39 @@ export function SearchScreen() {
       }
     >
       {!active ? (
-        <EmptyState
-          icon={<MagnifyingGlass />}
-          title="Find something you've watched"
-          message="Search movies and TV series by title, then log when you watched them and how they landed."
-        />
+        discover.isError ? (
+          <EmptyState
+            icon={<SmileyMeh />}
+            title="Couldn't load Discover"
+            message={
+              discover.error instanceof ApiError ? discover.error.message : 'Please try again.'
+            }
+            action={
+              <Button variant="tinted" onClick={() => void discover.refetch()}>
+                Retry
+              </Button>
+            }
+          />
+        ) : (
+          <div className="pb-2">
+            <PosterRow
+              title="Trending this week"
+              items={discover.data?.trending}
+              mixed
+              loading={discover.isPending}
+            />
+            <PosterRow
+              title="Popular Movies"
+              items={discover.data?.popularMovies}
+              loading={discover.isPending}
+            />
+            <PosterRow
+              title="Popular TV Series"
+              items={discover.data?.popularTv}
+              loading={discover.isPending}
+            />
+          </div>
+        )
       ) : query.isPending ? (
         <ListSkeleton rows={6} />
       ) : errorMessage ? (
@@ -98,6 +128,7 @@ export function SearchScreen() {
                     <span className="flex items-center gap-1 text-footnote text-label-secondary">
                       {r.releaseYear && <span>{r.releaseYear}</span>}
                       <MediaTypeBadge mediaType={r.mediaType} />
+                      <TmdbRating rating={r.tmdbRating} showCount={false} />
                     </span>
                   </span>
                   {r.inLibrary && (

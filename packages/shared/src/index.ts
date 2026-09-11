@@ -7,5 +7,6 @@ export * from './media.js';
 export * from './public.js';
 export * from './rating.js';
 export * from './search.js';
+export * from './seasons.js';
 export * from './tmdb.js';
 export * from './watch.js';

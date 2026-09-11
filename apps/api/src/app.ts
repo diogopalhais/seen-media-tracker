@@ -104,7 +104,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   );
   app.route('/api/v1', searchRoutes({ provider: deps.provider, library, requireAuth }));
   app.route('/api/v1', watchRoutes({ provider: deps.provider, library, requireAuth, now }));
-  app.route('/api/v1', libraryRoutes({ library, requireAuth }));
+  app.route('/api/v1', libraryRoutes({ library, provider: deps.provider, requireAuth, now }));
   app.route('/api/v1/public', publicRoutes({ library, now }));
 
   app.notFound((c) => sendError(c, ApiError.notFound('Route')));

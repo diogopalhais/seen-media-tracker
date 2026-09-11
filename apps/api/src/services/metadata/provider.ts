@@ -9,6 +9,8 @@ export interface ProviderSearchResult {
   posterPath: string | null;
   overview: string;
   popularity: number;
+  voteAverage: number | null;
+  voteCount: number;
 }
 
 export interface ProviderSearchPage {
@@ -30,7 +32,32 @@ export interface ProviderTitleDetails {
   runtimeMinutes: number | null;
   numberOfSeasons: number | null;
   seasons: Season[] | null;
+  voteAverage: number | null;
+  voteCount: number;
 }
+
+export interface ProviderEpisode {
+  episodeNumber: number;
+  name: string;
+  overview: string;
+  airDate: string | null;
+  runtimeMinutes: number | null;
+  stillPath: string | null;
+  voteAverage: number | null;
+  voteCount: number;
+}
+
+export interface ProviderSeasonDetails {
+  tmdbId: number;
+  seasonNumber: number;
+  name: string;
+  overview: string;
+  airDate: string | null;
+  posterPath: string | null;
+  episodes: ProviderEpisode[];
+}
+
+export type TrendingWindow = 'day' | 'week';
 
 export type ProviderErrorKind = 'not_found' | 'unavailable';
 
@@ -51,6 +78,11 @@ export interface MetadataProvider {
   searchTv(query: string, page: number): Promise<ProviderSearchPage>;
   movieDetails(tmdbId: number): Promise<ProviderTitleDetails>;
   tvDetails(tmdbId: number): Promise<ProviderTitleDetails>;
+  /** Movies and TV series trending over the window (people are excluded). */
+  trendingAll(window: TrendingWindow): Promise<ProviderSearchResult[]>;
+  popularMovies(): Promise<ProviderSearchResult[]>;
+  popularTv(): Promise<ProviderSearchResult[]>;
+  tvSeason(tmdbId: number, seasonNumber: number): Promise<ProviderSeasonDetails>;
 }
 
 export function releaseYear(releaseDate: string | null): number | null {

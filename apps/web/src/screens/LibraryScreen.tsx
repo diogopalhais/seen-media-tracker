@@ -1,27 +1,26 @@
-import { CaretDown, FilmStrip, MagnifyingGlass } from '@phosphor-icons/react';
-import type { LibrarySort, MediaTypeFilter } from '@seen/shared';
+import { FilmStrip, MagnifyingGlass, SlidersHorizontal } from '@phosphor-icons/react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
+import {
+  DEFAULT_FILTERS,
+  FilterSheet,
+  isDefaultFilters,
+  type LibraryFilters,
+} from '../components/FilterSheet.js';
 import { Banner } from '../components/ui/Banner.js';
 import { Button, Spinner } from '../components/ui/Button.js';
-import { EmptyState, Poster, RatingBadge } from '../components/ui/Media.js';
+import { EmptyState, Poster, RatingBadge, TmdbRating } from '../components/ui/Media.js';
 import { Screen } from '../components/ui/NavBar.js';
-import { SegmentedControl } from '../components/ui/SegmentedControl.js';
 import { PosterGridSkeleton } from '../components/ui/Skeleton.js';
 import { ApiError } from '../lib/api.js';
 import { useLibraryQuery } from '../lib/queries.js';
 
 // Persisted for as long as the app stays open, across navigation into and out of items.
-let savedFilters: { type: MediaTypeFilter; sort: LibrarySort } = { type: 'all', sort: 'recent' };
-
-const SORT_LABEL: Record<LibrarySort, string> = {
-  recent: 'Recent',
-  title: 'Title',
-  rating: 'Rating',
-};
+let savedFilters: LibraryFilters = DEFAULT_FILTERS;
 
 export function LibraryScreen() {
-  const [filters, setFilters] = useState(savedFilters);
+  const [filters, setFilters] = useState<LibraryFilters>(savedFilters);
+  const [filterOpen, setFilterOpen] = useState(false);
   const navigate = useNavigate();
   const query = useLibraryQuery(filters);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -51,44 +50,28 @@ export function LibraryScreen() {
       : query.error
         ? 'Could not load your library.'
         : null;
+  const active = !isDefaultFilters(filters);
 
   return (
     <Screen
       title="Library"
       large
-      accessory={
-        <div className="flex items-center gap-1">
-          <SegmentedControl<MediaTypeFilter>
-            ariaLabel="Filter by type"
-            value={filters.type}
-            onChange={(type) => setFilters((f) => ({ ...f, type }))}
-            segments={[
-              { value: 'all', label: 'All' },
-              { value: 'movie', label: 'Movies' },
-              { value: 'tv', label: 'TV' },
-            ]}
-            className="flex-1"
-          />
-          <label className="relative shrink-0">
-            <span className="visually-hidden">Sort by</span>
-            <select
-              value={filters.sort}
-              onChange={(e) => setFilters((f) => ({ ...f, sort: e.target.value as LibrarySort }))}
-              className="hit-target h-9 appearance-none rounded-full bg-fill pl-3 pr-8 text-[0.875rem] font-semibold text-label focus:outline-none focus:ring-2 focus:ring-tint/40"
-            >
-              {(Object.keys(SORT_LABEL) as LibrarySort[]).map((s) => (
-                <option key={s} value={s}>
-                  {SORT_LABEL[s]}
-                </option>
-              ))}
-            </select>
-            <CaretDown
-              weight="bold"
+      trailing={
+        <button
+          type="button"
+          aria-label={active ? 'Filter and sort (active)' : 'Filter and sort'}
+          aria-haspopup="dialog"
+          onClick={() => setFilterOpen(true)}
+          className="hit-target pressable relative -mr-2 flex items-center justify-center text-tint"
+        >
+          <SlidersHorizontal weight="bold" className="size-6" aria-hidden="true" />
+          {active && (
+            <span
               aria-hidden="true"
-              className="pointer-events-none absolute right-3 top-1/2 size-3 -translate-y-1/2 text-label-secondary"
+              className="absolute right-2 top-2 size-2 rounded-full bg-tint ring-2 ring-bg-grouped"
             />
-          </label>
-        </div>
+          )}
+        </button>
       }
     >
       {errorMessage && items.length > 0 && (
@@ -121,15 +104,25 @@ export function LibraryScreen() {
                   ? 'No movies yet'
                   : 'No TV series yet'
             }
-            message="Find a movie or series and log your first watch."
+            message={
+              active
+                ? 'Nothing matches the current filter. Adjust it from the top-right button.'
+                : 'Find a movie or series and log your first watch.'
+            }
             action={
-              <Button
-                variant="filled"
-                onClick={() => navigate('/search')}
-                icon={<MagnifyingGlass weight="bold" className="size-4" aria-hidden="true" />}
-              >
-                Search
-              </Button>
+              active ? (
+                <Button variant="tinted" onClick={() => setFilters(DEFAULT_FILTERS)}>
+                  Reset filters
+                </Button>
+              ) : (
+                <Button
+                  variant="filled"
+                  onClick={() => navigate('/search')}
+                  icon={<MagnifyingGlass weight="bold" className="size-4" aria-hidden="true" />}
+                >
+                  Search
+                </Button>
+              )
             }
           />
         ) : (
@@ -159,6 +152,12 @@ export function LibraryScreen() {
                     {item.releaseYear ?? ''}
                     {item.watchCount > 1 ? ` · ${item.watchCount}×` : ''}
                   </span>
+                  <TmdbRating
+                    rating={item.tmdbRating}
+                    size="small"
+                    showCount={false}
+                    className="-mt-1"
+                  />
                 </Link>
               </li>
             ))}
@@ -168,6 +167,13 @@ export function LibraryScreen() {
           {query.isFetchingNextPage && <Spinner className="text-label-secondary" />}
         </div>
       </div>
+
+      <FilterSheet
+        open={filterOpen}
+        onOpenChange={setFilterOpen}
+        filters={filters}
+        onChange={setFilters}
+      />
     </Screen>
   );
 }

@@ -22,6 +22,16 @@ export function tmdbBackdropUrl(
   return `${TMDB_IMAGE_BASE}/${size}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+export type StillSize = 'w300' | 'w780';
+
+export function tmdbStillUrl(
+  path: string | null | undefined,
+  size: StillSize = 'w300',
+): string | null {
+  if (!path) return null;
+  return `${TMDB_IMAGE_BASE}/${size}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 export function tmdbTitleUrl(mediaType: MediaType, tmdbId: number): string {
   return `${TMDB_SITE_BASE}/${mediaType}/${tmdbId}`;
 }

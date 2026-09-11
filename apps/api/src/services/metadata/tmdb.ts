@@ -4,8 +4,12 @@ import {
   ProviderError,
   type ProviderSearchPage,
   type ProviderSearchResult,
+  type ProviderSeasonDetails,
   type ProviderTitleDetails,
+  type TrendingWindow,
 } from './provider.js';
+
+const votes = { vote_average: z.number().nullish(), vote_count: z.number().nullish() };
 
 const TMDB_API_BASE = 'https://api.themoviedb.org/3';
 
@@ -21,6 +25,7 @@ const searchMovieSchema = z.object({
       poster_path: z.string().nullish(),
       overview: z.string().default(''),
       popularity: z.number().default(0),
+      ...votes,
     }),
   ),
 });
@@ -37,8 +42,49 @@ const searchTvSchema = z.object({
       poster_path: z.string().nullish(),
       overview: z.string().default(''),
       popularity: z.number().default(0),
+      ...votes,
     }),
   ),
+});
+
+const trendingSchema = z.object({
+  results: z.array(
+    z.object({
+      id: z.number(),
+      media_type: z.string(),
+      title: z.string().nullish(),
+      name: z.string().nullish(),
+      original_title: z.string().nullish(),
+      original_name: z.string().nullish(),
+      release_date: z.string().nullish(),
+      first_air_date: z.string().nullish(),
+      poster_path: z.string().nullish(),
+      overview: z.string().default(''),
+      popularity: z.number().default(0),
+      ...votes,
+    }),
+  ),
+});
+
+const seasonDetailsSchema = z.object({
+  season_number: z.number(),
+  name: z.string().default(''),
+  overview: z.string().default(''),
+  air_date: z.string().nullish(),
+  poster_path: z.string().nullish(),
+  episodes: z
+    .array(
+      z.object({
+        episode_number: z.number(),
+        name: z.string().default(''),
+        overview: z.string().default(''),
+        air_date: z.string().nullish(),
+        runtime: z.number().nullish(),
+        still_path: z.string().nullish(),
+        ...votes,
+      }),
+    )
+    .default([]),
 });
 
 const genreSchema = z.object({ id: z.number(), name: z.string() });
@@ -53,6 +99,7 @@ const movieDetailsSchema = z.object({
   backdrop_path: z.string().nullish(),
   genres: z.array(genreSchema).default([]),
   runtime: z.number().nullish(),
+  ...votes,
 });
 
 const tvDetailsSchema = z.object({
@@ -65,12 +112,14 @@ const tvDetailsSchema = z.object({
   backdrop_path: z.string().nullish(),
   genres: z.array(genreSchema).default([]),
   number_of_seasons: z.number().nullish(),
+  ...votes,
   seasons: z
     .array(
       z.object({
         season_number: z.number(),
         name: z.string().default(''),
         episode_count: z.number().default(0),
+        air_date: z.string().nullish(),
       }),
     )
     .default([]),
@@ -146,6 +195,8 @@ export class TmdbProvider implements MetadataProvider {
           posterPath: r.poster_path ?? null,
           overview: r.overview,
           popularity: r.popularity,
+          voteAverage: r.vote_average ?? null,
+          voteCount: r.vote_count ?? 0,
         }),
       ),
     };
@@ -169,6 +220,8 @@ export class TmdbProvider implements MetadataProvider {
           posterPath: r.poster_path ?? null,
           overview: r.overview,
           popularity: r.popularity,
+          voteAverage: r.vote_average ?? null,
+          voteCount: r.vote_count ?? 0,
         }),
       ),
     };
@@ -189,6 +242,8 @@ export class TmdbProvider implements MetadataProvider {
       runtimeMinutes: d.runtime ?? null,
       numberOfSeasons: null,
       seasons: null,
+      voteAverage: d.vote_average ?? null,
+      voteCount: d.vote_count ?? 0,
     };
   }
 
@@ -213,7 +268,95 @@ export class TmdbProvider implements MetadataProvider {
           seasonNumber: s.season_number,
           name: s.name,
           episodeCount: s.episode_count,
+          airDate: s.air_date || null,
           isSpecials: s.season_number === 0,
+        })),
+      voteAverage: d.vote_average ?? null,
+      voteCount: d.vote_count ?? 0,
+    };
+  }
+
+  private popular(
+    pool: 'movie' | 'tv',
+    data: z.infer<typeof searchMovieSchema> | z.infer<typeof searchTvSchema>,
+  ) {
+    return data.results.map((r): ProviderSearchResult => {
+      const movie = r as z.infer<typeof searchMovieSchema>['results'][number];
+      const tv = r as z.infer<typeof searchTvSchema>['results'][number];
+      return {
+        tmdbId: r.id,
+        mediaType: pool,
+        title: pool === 'movie' ? movie.title : tv.name,
+        originalTitle: pool === 'movie' ? movie.original_title : tv.original_name,
+        releaseDate: (pool === 'movie' ? movie.release_date : tv.first_air_date) || null,
+        posterPath: r.poster_path ?? null,
+        overview: r.overview,
+        popularity: r.popularity,
+        voteAverage: r.vote_average ?? null,
+        voteCount: r.vote_count ?? 0,
+      };
+    });
+  }
+
+  async popularMovies(): Promise<ProviderSearchResult[]> {
+    return this.popular(
+      'movie',
+      this.parse(searchMovieSchema, await this.get('/movie/popular', { page: '1' })),
+    );
+  }
+
+  async popularTv(): Promise<ProviderSearchResult[]> {
+    return this.popular(
+      'tv',
+      this.parse(searchTvSchema, await this.get('/tv/popular', { page: '1' })),
+    );
+  }
+
+  async trendingAll(window: TrendingWindow): Promise<ProviderSearchResult[]> {
+    const data = this.parse(trendingSchema, await this.get(`/trending/all/${window}`, {}));
+    return data.results
+      .filter((r) => r.media_type === 'movie' || r.media_type === 'tv')
+      .map((r): ProviderSearchResult => {
+        const isMovie = r.media_type === 'movie';
+        return {
+          tmdbId: r.id,
+          mediaType: isMovie ? 'movie' : 'tv',
+          title: (isMovie ? r.title : r.name) ?? '',
+          originalTitle: (isMovie ? r.original_title : r.original_name) ?? '',
+          releaseDate: (isMovie ? r.release_date : r.first_air_date) || null,
+          posterPath: r.poster_path ?? null,
+          overview: r.overview,
+          popularity: r.popularity,
+          voteAverage: r.vote_average ?? null,
+          voteCount: r.vote_count ?? 0,
+        };
+      });
+  }
+
+  async tvSeason(tmdbId: number, seasonNumber: number): Promise<ProviderSeasonDetails> {
+    const d = this.parse(
+      seasonDetailsSchema,
+      await this.get(`/tv/${tmdbId}/season/${seasonNumber}`, {}),
+    );
+    return {
+      tmdbId,
+      seasonNumber: d.season_number,
+      name: d.name,
+      overview: d.overview,
+      airDate: d.air_date || null,
+      posterPath: d.poster_path ?? null,
+      episodes: d.episodes
+        .slice()
+        .sort((a, b) => a.episode_number - b.episode_number)
+        .map((e) => ({
+          episodeNumber: e.episode_number,
+          name: e.name,
+          overview: e.overview,
+          airDate: e.air_date || null,
+          runtimeMinutes: e.runtime ?? null,
+          stillPath: e.still_path ?? null,
+          voteAverage: e.vote_average ?? null,
+          voteCount: e.vote_count ?? 0,
         })),
     };
   }

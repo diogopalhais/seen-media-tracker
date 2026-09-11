@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { LibraryMembershipSchema, MediaTypeFilterSchema, MediaTypeSchema } from './media.js';
+import {
+  LibraryMembershipSchema,
+  MediaTypeFilterSchema,
+  MediaTypeSchema,
+  TmdbRatingSchema,
+} from './media.js';
 
 export const SEARCH_QUERY_MAX = 200;
 export const SEARCH_PAGE_SIZE = 20;
@@ -26,6 +31,7 @@ export const SearchResultSchema = z
     posterUrl: z.url().nullable(),
     overview: z.string(),
     popularity: z.number(),
+    tmdbRating: TmdbRatingSchema,
   })
   .extend(LibraryMembershipSchema.shape);
 export type SearchResult = z.infer<typeof SearchResultSchema>;
@@ -41,3 +47,11 @@ export const TitleParamsSchema = z.object({
   mediaType: MediaTypeSchema,
   tmdbId: z.coerce.number().int().positive(),
 });
+
+/** Browsing lists shown when no search is active. Each list holds at most 20 titles. */
+export const DiscoverResponseSchema = z.object({
+  trending: z.array(SearchResultSchema),
+  popularMovies: z.array(SearchResultSchema),
+  popularTv: z.array(SearchResultSchema),
+});
+export type DiscoverResponse = z.infer<typeof DiscoverResponseSchema>;

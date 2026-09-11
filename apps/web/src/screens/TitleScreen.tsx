@@ -2,6 +2,7 @@ import { ArrowSquareOut, CheckCircle, Plus, SmileyMeh } from '@phosphor-icons/re
 import { MediaTypeSchema } from '@seen/shared';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { SeasonsList } from '../components/SeasonsList.js';
 import { Button } from '../components/ui/Button.js';
 import { InsetGroupedList, Row } from '../components/ui/InsetGroupedList.js';
 import {
@@ -10,6 +11,7 @@ import {
   MediaTypeBadge,
   Poster,
   RatingBadge,
+  TmdbRating,
 } from '../components/ui/Media.js';
 import { Screen } from '../components/ui/NavBar.js';
 import { Skeleton } from '../components/ui/Skeleton.js';
@@ -93,6 +95,7 @@ export function TitleScreen() {
             <MediaTypeBadge mediaType={t.mediaType} />
             {meta && <span>{meta}</span>}
           </p>
+          <TmdbRating rating={t.tmdbRating} />
           {t.inLibrary && (
             <div className="mt-0.5 flex items-center gap-1">
               <RatingBadge rating={t.rating} size="large" />
@@ -133,6 +136,10 @@ export function TitleScreen() {
           Log Watch
         </Button>
       </div>
+
+      {t.mediaType === 'tv' && t.seasons && (
+        <SeasonsList seasons={t.seasons} basePath={`/search/tv/${t.tmdbId}`} />
+      )}
 
       <InsetGroupedList className="mt-3">
         {t.inLibrary && t.libraryItemId && (

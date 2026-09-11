@@ -2,6 +2,7 @@ import { ArrowSquareOut, PencilSimple, Plus, Trash } from '@phosphor-icons/react
 import type { WatchEntry } from '@seen/shared';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { SeasonsList } from '../components/SeasonsList.js';
 import { AlertDialog } from '../components/ui/AlertDialog.js';
 import { Banner } from '../components/ui/Banner.js';
 import { Button } from '../components/ui/Button.js';
@@ -12,13 +13,14 @@ import {
   MediaTypeBadge,
   Poster,
   RatingBadge,
+  TmdbRating,
 } from '../components/ui/Media.js';
 import { Screen } from '../components/ui/NavBar.js';
 import { ListSkeleton, Skeleton } from '../components/ui/Skeleton.js';
 import { ApiError } from '../lib/api.js';
 import { formatDate, formatRuntime, formatSeasons, seasonLabel } from '../lib/format.js';
 import { useBack } from '../lib/nav.js';
-import { useDeleteWatchMutation, useLibraryItemQuery } from '../lib/queries.js';
+import { useDeleteWatchMutation, useLibraryItemQuery, useTitleQuery } from '../lib/queries.js';
 import { LogWatchSheet, type SheetMode } from './LogWatchSheet.js';
 
 export function LibraryItemScreen() {
@@ -36,6 +38,11 @@ export function LibraryItemScreen() {
 
   const detail = query.data;
   const item = detail?.item;
+  // Seasons are not part of the snapshot; fetch them live and degrade silently if TMDB is unavailable.
+  const title = useTitleQuery(
+    item?.mediaType === 'tv' ? 'tv' : undefined,
+    item?.mediaType === 'tv' ? item.tmdbId : undefined,
+  );
 
   const confirmDelete = async () => {
     if (!pendingDelete || !item) return;
@@ -122,6 +129,7 @@ export function LibraryItemScreen() {
             <MediaTypeBadge mediaType={item.mediaType} />
             {meta && <span>{meta}</span>}
           </p>
+          <TmdbRating rating={item.tmdbRating} />
           <div className="mt-0.5 flex items-center gap-1">
             <RatingBadge rating={detail.rating} size="large" />
             <span className="text-subheadline text-label-secondary">
@@ -164,6 +172,10 @@ export function LibraryItemScreen() {
         <Banner tone="error" onDismiss={() => setDeleteError(null)}>
           {deleteError}
         </Banner>
+      )}
+
+      {item.mediaType === 'tv' && title.data?.seasons && (
+        <SeasonsList seasons={title.data.seasons} basePath={`/library/${item.id}`} />
       )}
 
       <InsetGroupedList header="History" className="mt-3">

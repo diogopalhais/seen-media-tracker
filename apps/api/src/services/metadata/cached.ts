@@ -1,4 +1,11 @@
-import type { MetadataProvider, ProviderSearchPage, ProviderTitleDetails } from './provider.js';
+import type {
+  MetadataProvider,
+  ProviderSearchPage,
+  ProviderSearchResult,
+  ProviderSeasonDetails,
+  ProviderTitleDetails,
+  TrendingWindow,
+} from './provider.js';
 
 interface Entry<T> {
   value: Promise<T>;
@@ -51,6 +58,8 @@ export const DETAILS_TTL_MS = 60 * 60 * 1000;
 export class CachedMetadataProvider implements MetadataProvider {
   private readonly searches = new LruCache<ProviderSearchPage>(500);
   private readonly details = new LruCache<ProviderTitleDetails>(1000);
+  private readonly lists = new LruCache<ProviderSearchResult[]>(10);
+  private readonly seasons = new LruCache<ProviderSeasonDetails>(500);
 
   constructor(private readonly inner: MetadataProvider) {}
 
@@ -90,6 +99,28 @@ export class CachedMetadataProvider implements MetadataProvider {
   tvDetails(tmdbId: number): Promise<ProviderTitleDetails> {
     return this.cached(this.details, `tv:${tmdbId}`, DETAILS_TTL_MS, () =>
       this.inner.tvDetails(tmdbId),
+    );
+  }
+
+  trendingAll(window: TrendingWindow): Promise<ProviderSearchResult[]> {
+    return this.cached(this.lists, `trending:${window}`, DETAILS_TTL_MS, () =>
+      this.inner.trendingAll(window),
+    );
+  }
+
+  popularMovies(): Promise<ProviderSearchResult[]> {
+    return this.cached(this.lists, 'popular:movie', DETAILS_TTL_MS, () =>
+      this.inner.popularMovies(),
+    );
+  }
+
+  popularTv(): Promise<ProviderSearchResult[]> {
+    return this.cached(this.lists, 'popular:tv', DETAILS_TTL_MS, () => this.inner.popularTv());
+  }
+
+  tvSeason(tmdbId: number, seasonNumber: number): Promise<ProviderSeasonDetails> {
+    return this.cached(this.seasons, `season:${tmdbId}:${seasonNumber}`, DETAILS_TTL_MS, () =>
+      this.inner.tvSeason(tmdbId, seasonNumber),
     );
   }
 }

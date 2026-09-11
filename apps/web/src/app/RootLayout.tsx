@@ -9,6 +9,7 @@ import { LibraryItemScreen } from '../screens/LibraryItemScreen.js';
 import { LibraryScreen } from '../screens/LibraryScreen.js';
 import { NotFoundScreen } from '../screens/NotFoundScreen.js';
 import { SearchScreen } from '../screens/SearchScreen.js';
+import { SeasonScreen } from '../screens/SeasonScreen.js';
 import { SettingsScreen } from '../screens/SettingsScreen.js';
 import { TitleScreen } from '../screens/TitleScreen.js';
 
@@ -27,12 +28,14 @@ const TAB_ROUTES: Record<string, ReactNode> = {
     <>
       <Route path="/library" element={<LibraryScreen />} />
       <Route path="/library/:itemId" element={<LibraryItemScreen />} />
+      <Route path="/library/:itemId/season/:seasonNumber" element={<SeasonScreen />} />
     </>
   ),
   search: (
     <>
       <Route path="/search" element={<SearchScreen />} />
       <Route path="/search/:mediaType/:tmdbId" element={<TitleScreen />} />
+      <Route path="/search/tv/:tmdbId/season/:seasonNumber" element={<SeasonScreen />} />
     </>
   ),
   settings: <Route path="/settings" element={<SettingsScreen />} />,

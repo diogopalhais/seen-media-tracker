@@ -8,6 +8,7 @@ import {
   ProviderError,
   type ProviderSearchPage,
   type ProviderSearchResult,
+  type ProviderSeasonDetails,
   type ProviderTitleDetails,
 } from '../src/services/metadata/provider.js';
 import type { AppEnv } from '../src/types.js';
@@ -51,6 +52,8 @@ export const MOVIES: ProviderTitleDetails[] = [
     runtimeMinutes: 155,
     numberOfSeasons: null,
     seasons: null,
+    voteAverage: 7.8,
+    voteCount: 12345,
   },
   {
     mediaType: 'movie',
@@ -65,6 +68,8 @@ export const MOVIES: ProviderTitleDetails[] = [
     runtimeMinutes: 137,
     numberOfSeasons: null,
     seasons: null,
+    voteAverage: 7.8,
+    voteCount: 12345,
   },
   {
     mediaType: 'movie',
@@ -79,6 +84,8 @@ export const MOVIES: ProviderTitleDetails[] = [
     runtimeMinutes: 139,
     numberOfSeasons: null,
     seasons: null,
+    voteAverage: 7.8,
+    voteCount: 12345,
   },
 ];
 
@@ -96,9 +103,17 @@ export const SHOWS: ProviderTitleDetails[] = [
     runtimeMinutes: null,
     numberOfSeasons: 1,
     seasons: [
-      { seasonNumber: 0, name: 'Specials', episodeCount: 2, isSpecials: true },
-      { seasonNumber: 1, name: 'Season 1', episodeCount: 6, isSpecials: false },
+      { seasonNumber: 0, name: 'Specials', episodeCount: 2, airDate: null, isSpecials: true },
+      {
+        seasonNumber: 1,
+        name: 'Season 1',
+        episodeCount: 6,
+        airDate: '2024-11-17',
+        isSpecials: false,
+      },
     ],
+    voteAverage: 6.9,
+    voteCount: 320,
   },
   {
     mediaType: 'tv',
@@ -113,9 +128,23 @@ export const SHOWS: ProviderTitleDetails[] = [
     runtimeMinutes: null,
     numberOfSeasons: 2,
     seasons: [
-      { seasonNumber: 1, name: 'Season 1', episodeCount: 9, isSpecials: false },
-      { seasonNumber: 2, name: 'Season 2', episodeCount: 10, isSpecials: false },
+      {
+        seasonNumber: 1,
+        name: 'Season 1',
+        episodeCount: 9,
+        airDate: '2022-02-17',
+        isSpecials: false,
+      },
+      {
+        seasonNumber: 2,
+        name: 'Season 2',
+        episodeCount: 10,
+        airDate: '2025-01-17',
+        isSpecials: false,
+      },
     ],
+    voteAverage: 8.4,
+    voteCount: 3200,
   },
 ];
 
@@ -131,6 +160,8 @@ function toResult(d: ProviderTitleDetails): ProviderSearchResult {
     posterPath: d.posterPath,
     overview: d.overview,
     popularity: POPULARITY[d.tmdbId] ?? 1,
+    voteAverage: d.voteAverage,
+    voteCount: d.voteCount,
   };
 }
 
@@ -171,6 +202,50 @@ export class StubProvider implements MetadataProvider {
   async tvDetails(tmdbId: number): Promise<ProviderTitleDetails> {
     this.calls.push(`tvDetails:${tmdbId}`);
     return this.details(SHOWS, tmdbId);
+  }
+
+  async trendingAll(window: 'day' | 'week'): Promise<ProviderSearchResult[]> {
+    this.calls.push(`trending:${window}`);
+    if (this.unavailable) throw new ProviderError('unavailable', 'stub outage');
+    return [SHOWS[1], MOVIES[0], SHOWS[0]].map((d) => toResult(d as ProviderTitleDetails));
+  }
+
+  async popularMovies(): Promise<ProviderSearchResult[]> {
+    this.calls.push('popular:movie');
+    if (this.unavailable) throw new ProviderError('unavailable', 'stub outage');
+    return MOVIES.map(toResult);
+  }
+
+  async popularTv(): Promise<ProviderSearchResult[]> {
+    this.calls.push('popular:tv');
+    if (this.unavailable) throw new ProviderError('unavailable', 'stub outage');
+    return SHOWS.map(toResult);
+  }
+
+  async tvSeason(tmdbId: number, seasonNumber: number): Promise<ProviderSeasonDetails> {
+    this.calls.push(`season:${tmdbId}:${seasonNumber}`);
+    if (this.unavailable) throw new ProviderError('unavailable', 'stub outage');
+    const show = SHOWS.find((s) => s.tmdbId === tmdbId);
+    const season = show?.seasons?.find((s) => s.seasonNumber === seasonNumber);
+    if (!show || !season) throw new ProviderError('not_found', 'stub missing');
+    return {
+      tmdbId,
+      seasonNumber,
+      name: season.name,
+      overview: `${show.title} ${season.name}`,
+      airDate: season.airDate,
+      posterPath: '/season.jpg',
+      episodes: Array.from({ length: season.episodeCount }, (_, i) => ({
+        episodeNumber: i + 1,
+        name: `Episode ${i + 1}`,
+        overview: `Overview ${i + 1}`,
+        airDate: season.airDate,
+        runtimeMinutes: 45,
+        stillPath: i === 0 ? '/still.jpg' : null,
+        voteAverage: 8 + i / 10,
+        voteCount: 100 + i,
+      })).reverse(),
+    };
   }
 }
 

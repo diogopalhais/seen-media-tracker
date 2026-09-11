@@ -3,6 +3,8 @@ import {
   type ApiErrorCode,
   type ApiErrorDetail,
   ApiErrorSchema,
+  type DiscoverResponse,
+  DiscoverResponseSchema,
   type LibraryItemDetail,
   LibraryItemDetailSchema,
   type LibraryListResponse,
@@ -15,6 +17,8 @@ import {
   type MediaTypeFilter,
   type SearchResponse,
   SearchResponseSchema,
+  type SeasonDetails,
+  SeasonDetailsSchema,
   type SessionResponse,
   SessionResponseSchema,
   type TitleDetails,
@@ -141,6 +145,11 @@ export const api = {
     request<SearchResponse>(`/api/v1/search${qs({ q, type, page })}`, {
       schema: SearchResponseSchema,
       ...(signal ? { signal } : {}),
+    }),
+  discover: () => request<DiscoverResponse>('/api/v1/discover', { schema: DiscoverResponseSchema }),
+  season: (tmdbId: number, seasonNumber: number) =>
+    request<SeasonDetails>(`/api/v1/titles/tv/${tmdbId}/seasons/${seasonNumber}`, {
+      schema: SeasonDetailsSchema,
     }),
   title: (mediaType: MediaType, tmdbId: number) =>
     request<TitleDetails>(`/api/v1/titles/${mediaType}/${tmdbId}`, { schema: TitleDetailsSchema }),
