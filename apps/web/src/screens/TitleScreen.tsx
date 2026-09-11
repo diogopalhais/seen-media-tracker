@@ -2,6 +2,7 @@ import { ArrowSquareOut, CheckCircle, Plus, SmileyMeh } from '@phosphor-icons/re
 import { MediaTypeSchema } from '@seen/shared';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { ContinueWatchingCard } from '../components/Progress.js';
 import { SeasonsList } from '../components/SeasonsList.js';
 import { Button } from '../components/ui/Button.js';
 import { InsetGroupedList, Row } from '../components/ui/InsetGroupedList.js';
@@ -18,7 +19,7 @@ import { Skeleton } from '../components/ui/Skeleton.js';
 import { ApiError } from '../lib/api.js';
 import { formatRuntime, formatSeasons } from '../lib/format.js';
 import { useBack } from '../lib/nav.js';
-import { useTitleQuery } from '../lib/queries.js';
+import { useLibraryItemQuery, useTitleQuery } from '../lib/queries.js';
 import { LogWatchSheet } from './LogWatchSheet.js';
 
 export function TitleScreen() {
@@ -30,6 +31,9 @@ export function TitleScreen() {
   const navigate = useNavigate();
   const query = useTitleQuery(valid ? mediaType.data : undefined, valid ? tmdbId : undefined);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const libraryItem = useLibraryItemQuery(
+    query.data?.mediaType === 'tv' ? (query.data.libraryItemId ?? undefined) : undefined,
+  );
 
   if (!valid || query.isError) {
     const notFound = !valid || (query.error instanceof ApiError && query.error.status === 404);
@@ -138,7 +142,17 @@ export function TitleScreen() {
       </div>
 
       {t.mediaType === 'tv' && t.seasons && (
-        <SeasonsList seasons={t.seasons} basePath={`/search/tv/${t.tmdbId}`} />
+        <>
+          {libraryItem.data && (
+            <ContinueWatchingCard
+              tmdbId={t.tmdbId}
+              seasons={t.seasons}
+              watches={libraryItem.data.episodeWatches}
+              basePath={`/search/tv/${t.tmdbId}`}
+            />
+          )}
+          <SeasonsList seasons={t.seasons} basePath={`/search/tv/${t.tmdbId}`} />
+        </>
       )}
 
       <InsetGroupedList className="mt-3">

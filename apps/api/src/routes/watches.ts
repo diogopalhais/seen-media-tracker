@@ -1,5 +1,7 @@
 import {
+  type EpisodeWatchesResponse,
   LogWatchRequestSchema,
+  SetEpisodesWatchedRequestSchema,
   UpdateWatchRequestSchema,
   type WatchMutationResponse,
 } from '@seen/shared';
@@ -53,6 +55,42 @@ export function watchRoutes(deps: WatchDeps): Hono<AppEnv> {
     const body: WatchMutationResponse = { entry: toWatchEntry(entry), item: toMediaItem(item) };
     return c.json(body, 201);
   });
+
+  router.put(
+    '/watches/episodes',
+    deps.requireAuth,
+    validate('json', SetEpisodesWatchedRequestSchema),
+    async (c) => {
+      const input = c.req.valid('json');
+      const now = deps.now();
+      let item = await deps.library.findItemByTmdb('tv', input.tmdbId);
+      if (!item) {
+        if (!input.watched) throw ApiError.notFound('Series');
+        try {
+          const details = await deps.provider.tvDetails(input.tmdbId);
+          item = await deps.library.upsertItem(details, now);
+        } catch (err) {
+          mapProviderError(err);
+        }
+      } else if (item.mediaType !== 'tv') {
+        throw ApiError.validation([
+          { path: 'tmdbId', message: 'Episodes can only be tracked for TV series' },
+        ]);
+      }
+      const stillExists = await deps.library.setEpisodesWatched(
+        item.id,
+        input.episodes,
+        input.watched,
+        input.watchedOn ?? now.toISOString().slice(0, 10),
+        now,
+      );
+      const body: EpisodeWatchesResponse = {
+        item: toMediaItem(item),
+        episodeWatches: stillExists ? await deps.library.episodeWatchesFor(item.id) : [],
+      };
+      return c.json(body, 200);
+    },
+  );
 
   router.patch(
     '/watches/:id',

@@ -59,6 +59,7 @@ describe('GET /api/v1/public/recent', () => {
       rating: 8,
       watchedOn: '2026-09-05',
       season: null,
+      episode: null,
       tmdbUrl: 'https://www.themoviedb.org/movie/550',
     });
     expect(body.items[1]).toMatchObject({

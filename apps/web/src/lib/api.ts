@@ -5,6 +5,8 @@ import {
   ApiErrorSchema,
   type DiscoverResponse,
   DiscoverResponseSchema,
+  type EpisodeWatchesResponse,
+  EpisodeWatchesResponseSchema,
   type LibraryItemDetail,
   LibraryItemDetailSchema,
   type LibraryListResponse,
@@ -21,6 +23,7 @@ import {
   SeasonDetailsSchema,
   type SessionResponse,
   SessionResponseSchema,
+  type SetEpisodesWatchedRequest,
   type TitleDetails,
   TitleDetailsSchema,
   type UpdateWatchRequest,
@@ -53,13 +56,18 @@ export class ApiError extends Error {
     return out;
   }
 
+  /** True only when the browser reports no connectivity; other fetch failures are server or network faults. */
   get isOffline(): boolean {
+    return this.code === 'offline';
+  }
+
+  get isNetworkFailure(): boolean {
     return this.code === 'offline' || this.code === 'network_error';
   }
 }
 
 interface RequestOptions<T> {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   schema?: z.ZodType<T>;
   auth?: boolean;
@@ -182,4 +190,10 @@ export const api = {
       schema: WatchMutationResponseSchema,
     }),
   deleteWatch: (id: string) => request<void>(`/api/v1/watches/${id}`, { method: 'DELETE' }),
+  setEpisodesWatched: (body: SetEpisodesWatchedRequest) =>
+    request<EpisodeWatchesResponse>('/api/v1/watches/episodes', {
+      method: 'PUT',
+      body,
+      schema: EpisodeWatchesResponseSchema,
+    }),
 };

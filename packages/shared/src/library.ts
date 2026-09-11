@@ -6,7 +6,7 @@ import {
   TmdbRatingSchema,
 } from './media.js';
 import { RatingSchema } from './rating.js';
-import { WatchEntrySchema } from './watch.js';
+import { EpisodeWatchSchema, WatchEntrySchema } from './watch.js';
 
 export const LibrarySortSchema = z.enum(['recent', 'title', 'rating']);
 export type LibrarySort = z.infer<typeof LibrarySortSchema>;
@@ -33,7 +33,9 @@ export const LibraryItemSummarySchema = z.object({
   rating: RatingSchema.nullable(),
   tmdbRating: TmdbRatingSchema,
   lastWatchedOn: z.string(),
-  watchCount: z.number().int().min(1),
+  /** Number of season/series logs; 0 when the title is tracked only by episodes. */
+  watchCount: z.number().int().min(0),
+  episodesWatched: z.number().int().min(0),
   lastSeason: z.number().int().nullable(),
 });
 export type LibraryItemSummary = z.infer<typeof LibraryItemSummarySchema>;
@@ -49,5 +51,7 @@ export const LibraryItemDetailSchema = z.object({
   rating: RatingSchema.nullable(),
   watchCount: z.number().int().min(0),
   entries: z.array(WatchEntrySchema),
+  /** Season-episode ordered. */
+  episodeWatches: z.array(EpisodeWatchSchema),
 });
 export type LibraryItemDetail = z.infer<typeof LibraryItemDetailSchema>;

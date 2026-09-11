@@ -1,4 +1,5 @@
 import {
+  type EpisodeWatch,
   type LibraryItemDetail,
   type LibraryItemSummary,
   type LibraryListQuery,
@@ -15,7 +16,14 @@ import {
 } from '@seen/shared';
 import { and, asc, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
 import type { Db } from '../db/client.js';
-import { type MediaItemRow, mediaItems, type WatchEntryRow, watchEntries } from '../db/schema.js';
+import {
+  type EpisodeWatchRow,
+  episodeWatches,
+  type MediaItemRow,
+  mediaItems,
+  type WatchEntryRow,
+  watchEntries,
+} from '../db/schema.js';
 import { type ProviderTitleDetails, releaseYear } from './metadata/provider.js';
 
 export function membershipKey(mediaType: MediaType, tmdbId: number): string {
@@ -44,6 +52,14 @@ export function toMediaItem(row: MediaItemRow): MediaItem {
   };
 }
 
+export function toEpisodeWatch(row: EpisodeWatchRow): EpisodeWatch {
+  return {
+    seasonNumber: row.seasonNumber,
+    episodeNumber: row.episodeNumber,
+    watchedOn: row.watchedOn,
+  };
+}
+
 export function toWatchEntry(row: WatchEntryRow): WatchEntry {
   return {
     id: row.id,
@@ -69,11 +85,22 @@ const displayedRating = () => sql<number | null>`(
   where w.media_item_id = ${itemId} and w.rating is not null
   order by w.watched_on desc, w.created_at desc limit 1)`;
 
+/** Most recent activity across season/series logs and episode watches. */
 const lastWatchedOn = () => sql<string>`(
-  select max(w.watched_on)::text from ${watchEntries} w where w.media_item_id = ${itemId})`;
+  select greatest(
+    (select max(w.watched_on) from ${watchEntries} w where w.media_item_id = ${itemId}),
+    (select max(ew.watched_on) from ${episodeWatches} ew where ew.media_item_id = ${itemId})
+  )::text)`;
 
 const watchCount = () => sql<number>`(
   select count(*)::int from ${watchEntries} w where w.media_item_id = ${itemId})`;
+
+const episodesWatched = () => sql<number>`(
+  select count(*)::int from ${episodeWatches} ew where ew.media_item_id = ${itemId})`;
+
+const hasActivity = () => sql`(
+  exists (select 1 from ${watchEntries} w where w.media_item_id = ${itemId})
+  or exists (select 1 from ${episodeWatches} ew where ew.media_item_id = ${itemId}))`;
 
 const lastSeason = () => sql<number | null>`(
   select w.season from ${watchEntries} w where w.media_item_id = ${itemId}
@@ -93,6 +120,26 @@ export function decodeCursor(cursor: string | undefined): number {
   } catch {
     return 0;
   }
+}
+
+/** Removes an item that has neither logs nor episode watches. Returns true when removed. */
+async function removeItemIfInactive(
+  tx: Pick<Db, 'select' | 'delete'>,
+  itemId: string,
+): Promise<boolean> {
+  const [entries] = await tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(watchEntries)
+    .where(eq(watchEntries.mediaItemId, itemId));
+  const [episodes] = await tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(episodeWatches)
+    .where(eq(episodeWatches.mediaItemId, itemId));
+  if ((entries?.n ?? 0) === 0 && (episodes?.n ?? 0) === 0) {
+    await tx.delete(mediaItems).where(eq(mediaItems.id, itemId));
+    return true;
+  }
+  return false;
 }
 
 export class LibraryRepository {
@@ -234,14 +281,50 @@ export class LibraryRepository {
         .where(eq(watchEntries.id, entryId))
         .returning({ mediaItemId: watchEntries.mediaItemId });
       if (!deleted) return false;
-      const [remaining] = await tx
-        .select({ n: sql<number>`count(*)::int` })
-        .from(watchEntries)
-        .where(eq(watchEntries.mediaItemId, deleted.mediaItemId));
-      if ((remaining?.n ?? 0) === 0) {
-        await tx.delete(mediaItems).where(eq(mediaItems.id, deleted.mediaItemId));
-      }
+      await removeItemIfInactive(tx, deleted.mediaItemId);
       return true;
+    });
+  }
+
+  /** Lists an item's episode watches in season-episode order. */
+  async episodeWatchesFor(itemId: string): Promise<EpisodeWatch[]> {
+    const rows = await this.db
+      .select()
+      .from(episodeWatches)
+      .where(eq(episodeWatches.mediaItemId, itemId))
+      .orderBy(asc(episodeWatches.seasonNumber), asc(episodeWatches.episodeNumber));
+    return rows.map(toEpisodeWatch);
+  }
+
+  /**
+   * Idempotently marks or unmarks episodes. Marking keeps existing dates; unmarking the last
+   * activity removes the item from the library. Returns whether the item still exists.
+   */
+  async setEpisodesWatched(
+    itemId: string,
+    episodes: { seasonNumber: number; episodeNumber: number }[],
+    watched: boolean,
+    watchedOn: string,
+    now: Date,
+  ): Promise<boolean> {
+    return this.db.transaction(async (tx) => {
+      if (watched) {
+        await tx
+          .insert(episodeWatches)
+          .values(episodes.map((e) => ({ mediaItemId: itemId, ...e, watchedOn, createdAt: now })))
+          .onConflictDoNothing();
+        return true;
+      }
+      const keys = episodes.map((e) => sql`(${e.seasonNumber}, ${e.episodeNumber})`);
+      await tx
+        .delete(episodeWatches)
+        .where(
+          and(
+            eq(episodeWatches.mediaItemId, itemId),
+            sql`(${episodeWatches.seasonNumber}, ${episodeWatches.episodeNumber}) in (${sql.join(keys, sql`, `)})`,
+          ),
+        );
+      return !(await removeItemIfInactive(tx, itemId));
     });
   }
 
@@ -262,6 +345,7 @@ export class LibraryRepository {
       rating: item.rating,
       watchCount: entries.length,
       entries: entries.map(toWatchEntry),
+      episodeWatches: await this.episodeWatchesFor(itemId),
     };
   }
 
@@ -274,9 +358,8 @@ export class LibraryRepository {
     const count = watchCount();
     const season = lastSeason();
 
-    const conditions: SQL[] = [
-      sql`exists (select 1 from ${watchEntries} w where w.media_item_id = ${itemId})`,
-    ];
+    const episodes = episodesWatched();
+    const conditions: SQL[] = [hasActivity()];
     if (query.type !== 'all') conditions.push(eq(mediaItems.mediaType, query.type));
 
     const order: SQL[] =
@@ -299,6 +382,7 @@ export class LibraryRepository {
         rating,
         lastWatchedOn: last,
         watchCount: count,
+        episodesWatched: episodes,
         lastSeason: season,
       })
       .from(mediaItems)
@@ -320,50 +404,44 @@ export class LibraryRepository {
         tmdbRating: toTmdbRating(r.tmdbVoteAverage, r.tmdbVoteCount),
         lastWatchedOn: r.lastWatchedOn,
         watchCount: r.watchCount,
+        episodesWatched: r.episodesWatched,
         lastSeason: r.lastSeason,
       })),
       nextCursor: rows.length > query.limit ? encodeCursor(offset + query.limit) : null,
     };
   }
 
-  /** One row per title, described by its most recent watch, newest first. */
+  /** One row per title, described by its most recent event (log or episode watch), newest first. */
   async publicRecent(limit: number): Promise<PublicRecentItem[]> {
-    const latest = this.db
-      .selectDistinctOn([watchEntries.mediaItemId], {
-        mediaItemId: watchEntries.mediaItemId,
-        watchedOn: watchEntries.watchedOn,
-        createdAt: watchEntries.createdAt,
-        season: watchEntries.season,
-      })
-      .from(watchEntries)
-      .orderBy(asc(watchEntries.mediaItemId), ...entryOrder)
-      .as('latest');
-
-    const rows = await this.db
-      .select({
-        mediaType: mediaItems.mediaType,
-        tmdbId: mediaItems.tmdbId,
-        title: mediaItems.title,
-        releaseYear: mediaItems.releaseYear,
-        posterPath: mediaItems.posterPath,
-        rating: displayedRating(),
-        watchedOn: latest.watchedOn,
-        season: latest.season,
-      })
-      .from(latest)
-      .innerJoin(mediaItems, eq(mediaItems.id, latest.mediaItemId))
-      .orderBy(desc(latest.watchedOn), desc(latest.createdAt))
-      .limit(limit);
-
-    return rows.map((r) => ({
-      mediaType: r.mediaType,
-      title: r.title,
-      year: r.releaseYear,
-      posterUrl: tmdbPosterUrl(r.posterPath),
-      rating: r.rating,
-      watchedOn: r.watchedOn,
-      season: r.mediaType === 'tv' ? r.season : null,
-      tmdbUrl: tmdbTitleUrl(r.mediaType, r.tmdbId),
+    const events = sql`(
+      select w.media_item_id, w.watched_on, w.created_at, w.season, null::int as episode from ${watchEntries} w
+      union all
+      select ew.media_item_id, ew.watched_on, ew.created_at, ew.season_number, ew.episode_number from ${episodeWatches} ew
+    )`;
+    const rows = await this.db.execute(sql`
+      select ${mediaItems}.media_type as media_type, ${mediaItems}.tmdb_id as tmdb_id, ${mediaItems}.title as title,
+        ${mediaItems}.release_year as release_year, ${mediaItems}.poster_path as poster_path,
+        ${displayedRating()} as rating,
+        latest.watched_on::text as watched_on, latest.season as season, latest.episode as episode
+      from (
+        select distinct on (ev.media_item_id) ev.media_item_id, ev.watched_on, ev.created_at, ev.season, ev.episode
+        from ${events} ev
+        order by ev.media_item_id, ev.watched_on desc, ev.created_at desc, ev.season desc nulls last, ev.episode desc nulls last
+      ) latest
+      join ${mediaItems} on ${mediaItems}.id = latest.media_item_id
+      order by latest.watched_on desc, latest.created_at desc
+      limit ${limit}`);
+    const list = Array.isArray(rows) ? rows : ((rows as unknown as { rows: unknown[] }).rows ?? []);
+    return (list as unknown as Array<Record<string, unknown>>).map((r) => ({
+      mediaType: r.media_type as 'movie' | 'tv',
+      title: r.title as string,
+      year: (r.release_year as number | null) ?? null,
+      posterUrl: tmdbPosterUrl(r.poster_path as string | null),
+      rating: (r.rating as number | null) ?? null,
+      watchedOn: r.watched_on as string,
+      season: r.media_type === 'tv' ? ((r.season as number | null) ?? null) : null,
+      episode: r.media_type === 'tv' ? ((r.episode as number | null) ?? null) : null,
+      tmdbUrl: tmdbTitleUrl(r.media_type as 'movie' | 'tv', r.tmdb_id as number),
     }));
   }
 }

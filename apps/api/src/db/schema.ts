@@ -67,6 +67,29 @@ export const watchEntries = pgTable(
   ],
 );
 
+export const episodeWatches = pgTable(
+  'episode_watches',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    mediaItemId: uuid('media_item_id')
+      .notNull()
+      .references(() => mediaItems.id, { onDelete: 'cascade' }),
+    seasonNumber: integer('season_number').notNull(),
+    episodeNumber: integer('episode_number').notNull(),
+    watchedOn: date('watched_on', { mode: 'string' }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('episode_watches_item_episode_uidx').on(
+      t.mediaItemId,
+      t.seasonNumber,
+      t.episodeNumber,
+    ),
+    index('episode_watches_watched_idx').on(t.watchedOn.desc(), t.createdAt.desc()),
+    check('episode_watches_numbers_check', sql`${t.seasonNumber} >= 0 and ${t.episodeNumber} >= 0`),
+  ],
+);
+
 export const sessions = pgTable(
   'sessions',
   {
@@ -85,3 +108,4 @@ export const sessions = pgTable(
 export type MediaItemRow = typeof mediaItems.$inferSelect;
 export type WatchEntryRow = typeof watchEntries.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;
+export type EpisodeWatchRow = typeof episodeWatches.$inferSelect;

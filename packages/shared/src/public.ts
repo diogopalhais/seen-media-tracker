@@ -19,6 +19,8 @@ export const PublicRecentItemSchema = z.object({
   rating: RatingSchema.nullable(),
   watchedOn: z.string(),
   season: z.number().int().nullable(),
+  /** Set when the most recent event was an episode watch (TV only). */
+  episode: z.number().int().nullable(),
   tmdbUrl: z.url(),
 });
 export type PublicRecentItem = z.infer<typeof PublicRecentItemSchema>;

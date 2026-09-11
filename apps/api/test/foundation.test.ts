@@ -89,6 +89,7 @@ describe('api foundation', () => {
     expect(res.status).toBeLessThan(300);
     expect(res.headers.get('access-control-allow-origin')).toBe(ALLOWED_ORIGIN);
     expect(res.headers.get('access-control-allow-methods')).toContain('PATCH');
+    expect(res.headers.get('access-control-allow-methods')).toContain('PUT');
     expect(res.headers.get('access-control-allow-headers')?.toLowerCase()).toContain(
       'authorization',
     );

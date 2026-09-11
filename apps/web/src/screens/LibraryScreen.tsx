@@ -151,6 +151,7 @@ export function LibraryScreen() {
                   <span className="-mt-1 text-footnote text-label-secondary">
                     {item.releaseYear ?? ''}
                     {item.watchCount > 1 ? ` · ${item.watchCount}×` : ''}
+                    {item.episodesWatched > 0 ? ` · ${item.episodesWatched} eps` : ''}
                   </span>
                   <TmdbRating
                     rating={item.tmdbRating}

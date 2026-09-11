@@ -1,8 +1,11 @@
 import type {
+  EpisodeWatch,
+  LibraryItemDetail,
   LibrarySort,
   LogWatchRequest,
   MediaType,
   MediaTypeFilter,
+  SetEpisodesWatchedRequest,
   UpdateWatchRequest,
 } from '@seen/shared';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -140,5 +143,60 @@ export function useLogoutMutation() {
   return useMutation({
     mutationFn: () => api.logout(),
     onSettled: () => qc.clear(),
+  });
+}
+
+/**
+ * Marks/unmarks episodes with an optimistic update of the cached item detail (when the series is
+ * already in the library) and a rollback on failure. Afterwards the item, library, search badges and
+ * title details are refreshed so every screen agrees.
+ */
+export function useSetEpisodesWatchedMutation(tmdbId: number, itemId: string | undefined) {
+  const qc = useQueryClient();
+  const invalidate = useInvalidateLibrary();
+  return useMutation({
+    mutationFn: (body: Omit<SetEpisodesWatchedRequest, 'tmdbId'>) =>
+      api.setEpisodesWatched({ tmdbId, ...body }),
+    onMutate: async (body) => {
+      if (!itemId) return { previous: undefined };
+      const key = queryKeys.libraryItem(itemId);
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<LibraryItemDetail>(key);
+      if (previous) {
+        const today = new Date().toISOString().slice(0, 10);
+        const keyOf = (w: { seasonNumber: number; episodeNumber: number }) =>
+          `${w.seasonNumber}:${w.episodeNumber}`;
+        const wanted = new Set(body.episodes.map(keyOf));
+        let next: EpisodeWatch[];
+        if (body.watched) {
+          const existing = new Set(previous.episodeWatches.map(keyOf));
+          const added = body.episodes
+            .filter((e) => !existing.has(keyOf(e)))
+            .map((e) => ({ ...e, watchedOn: body.watchedOn ?? today }));
+          next = [...previous.episodeWatches, ...added].sort(
+            (a, b) => a.seasonNumber - b.seasonNumber || a.episodeNumber - b.episodeNumber,
+          );
+        } else {
+          next = previous.episodeWatches.filter((w) => !wanted.has(keyOf(w)));
+        }
+        qc.setQueryData<LibraryItemDetail>(key, { ...previous, episodeWatches: next });
+      }
+      return { previous };
+    },
+    onError: (_err, _body, context) => {
+      if (itemId && context?.previous)
+        qc.setQueryData(queryKeys.libraryItem(itemId), context.previous);
+    },
+    onSuccess: (res) => {
+      const key = queryKeys.libraryItem(res.item.id);
+      const current = qc.getQueryData<LibraryItemDetail>(key);
+      if (current)
+        qc.setQueryData<LibraryItemDetail>(key, {
+          ...current,
+          item: res.item,
+          episodeWatches: res.episodeWatches,
+        });
+      void invalidate({ id: res.item.id, mediaType: 'tv', tmdbId });
+    },
   });
 }

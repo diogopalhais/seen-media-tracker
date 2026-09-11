@@ -5,6 +5,13 @@ import { RatingSchema } from './rating.js';
 
 export const NOTE_MAX_LENGTH = 2000;
 
+export const EpisodeWatchSchema = z.object({
+  seasonNumber: z.number().int().min(0),
+  episodeNumber: z.number().int().min(0),
+  watchedOn: z.string(),
+});
+export type EpisodeWatch = z.infer<typeof EpisodeWatchSchema>;
+
 export const SeasonNumberSchema = z.number().int().min(0);
 export const NoteSchema = z
   .string()
@@ -53,3 +60,29 @@ export const WatchMutationResponseSchema = z.object({
   item: MediaItemSchema,
 });
 export type WatchMutationResponse = z.infer<typeof WatchMutationResponseSchema>;
+
+export const EPISODES_PER_REQUEST_MAX = 500;
+
+export const EpisodeRefSchema = z.object({
+  seasonNumber: z.number().int().min(0),
+  episodeNumber: z.number().int().min(0),
+});
+export type EpisodeRef = z.infer<typeof EpisodeRefSchema>;
+
+/** Idempotently sets the watched state of one or more episodes of a TV series. */
+export const SetEpisodesWatchedRequestSchema = z.object({
+  tmdbId: z.number().int().positive(),
+  episodes: z
+    .array(EpisodeRefSchema)
+    .min(1, 'At least one episode is required')
+    .max(EPISODES_PER_REQUEST_MAX),
+  watched: z.boolean(),
+  watchedOn: PastOrTodayDateSchema.optional(),
+});
+export type SetEpisodesWatchedRequest = z.infer<typeof SetEpisodesWatchedRequestSchema>;
+
+export const EpisodeWatchesResponseSchema = z.object({
+  item: MediaItemSchema,
+  episodeWatches: z.array(EpisodeWatchSchema),
+});
+export type EpisodeWatchesResponse = z.infer<typeof EpisodeWatchesResponseSchema>;

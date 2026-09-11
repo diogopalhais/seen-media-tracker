@@ -2,6 +2,7 @@ import { ArrowSquareOut, PencilSimple, Plus, Trash } from '@phosphor-icons/react
 import type { WatchEntry } from '@seen/shared';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { ContinueWatchingCard } from '../components/Progress.js';
 import { SeasonsList } from '../components/SeasonsList.js';
 import { AlertDialog } from '../components/ui/AlertDialog.js';
 import { Banner } from '../components/ui/Banner.js';
@@ -133,7 +134,11 @@ export function LibraryItemScreen() {
           <div className="mt-0.5 flex items-center gap-1">
             <RatingBadge rating={detail.rating} size="large" />
             <span className="text-subheadline text-label-secondary">
-              {detail.watchCount === 1 ? 'Watched once' : `Watched ${detail.watchCount} times`}
+              {detail.watchCount === 0
+                ? `${detail.episodeWatches.length} ${detail.episodeWatches.length === 1 ? 'episode' : 'episodes'} watched`
+                : detail.watchCount === 1
+                  ? 'Watched once'
+                  : `Watched ${detail.watchCount} times`}
             </span>
           </div>
         </div>
@@ -175,7 +180,15 @@ export function LibraryItemScreen() {
       )}
 
       {item.mediaType === 'tv' && title.data?.seasons && (
-        <SeasonsList seasons={title.data.seasons} basePath={`/library/${item.id}`} />
+        <>
+          <ContinueWatchingCard
+            tmdbId={item.tmdbId}
+            seasons={title.data.seasons}
+            watches={detail.episodeWatches}
+            basePath={`/library/${item.id}`}
+          />
+          <SeasonsList seasons={title.data.seasons} basePath={`/library/${item.id}`} />
+        </>
       )}
 
       <InsetGroupedList header="History" className="mt-3">
