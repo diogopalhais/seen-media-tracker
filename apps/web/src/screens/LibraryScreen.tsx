@@ -148,12 +148,10 @@ export function LibraryScreen() {
                     {item.watchCount > 1 ? ` · ${item.watchCount}×` : ''}
                     {item.episodesWatched > 0 ? ` · ${item.episodesWatched} eps` : ''}
                   </span>
-                  <AudienceRating
-                    rating={item.tmdbRating}
-                    size="small"
-                    showCount={false}
-                    className="-mt-1"
-                  />
+                  <span className="-mt-1 flex flex-wrap items-center gap-2">
+                    <AudienceRating rating={item.tmdbRating} size="small" showCount={false} />
+                    <RatingBadge rating={item.rating} />
+                  </span>
                 </Link>
               </li>
             ))}
