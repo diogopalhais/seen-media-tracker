@@ -1,0 +1,122 @@
+import type {
+  LibrarySort,
+  LogWatchRequest,
+  MediaType,
+  MediaTypeFilter,
+  UpdateWatchRequest,
+} from '@seen/shared';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api } from './api.js';
+
+export const queryKeys = {
+  session: ['session'] as const,
+  library: (filters: { type: MediaTypeFilter; sort: LibrarySort }) => ['library', filters] as const,
+  libraryAll: ['library'] as const,
+  libraryItem: (id: string) => ['library-item', id] as const,
+  search: (q: string, type: MediaTypeFilter) => ['search', q, type] as const,
+  searchAll: ['search'] as const,
+  title: (type: MediaType, id: number) => ['title', type, id] as const,
+};
+
+export function useSessionQuery(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.session,
+    queryFn: api.session,
+    enabled,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
+export function useLibraryQuery(filters: { type: MediaTypeFilter; sort: LibrarySort }) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.library(filters),
+    queryFn: ({ pageParam }) =>
+      api.library({ ...filters, ...(pageParam ? { cursor: pageParam } : {}) }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    staleTime: 30_000,
+  });
+}
+
+export function useLibraryItemQuery(id: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.libraryItem(id ?? ''),
+    queryFn: () => api.libraryItem(id as string),
+    enabled: Boolean(id),
+    staleTime: 30_000,
+  });
+}
+
+export function useSearchQuery(q: string, type: MediaTypeFilter) {
+  const trimmed = q.trim();
+  return useQuery({
+    queryKey: queryKeys.search(trimmed, type),
+    queryFn: ({ signal }) => api.search(trimmed, type, 1, signal),
+    enabled: trimmed.length > 0,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+}
+
+export function useTitleQuery(type: MediaType | undefined, id: number | undefined) {
+  return useQuery({
+    queryKey: queryKeys.title(type ?? 'movie', id ?? 0),
+    queryFn: () => api.title(type as MediaType, id as number),
+    enabled: Boolean(type && id),
+    staleTime: 60 * 60_000,
+  });
+}
+
+/** Everything that displays library state, so a single mutation refreshes grid, detail, search badges and title previews. */
+function useInvalidateLibrary() {
+  const qc = useQueryClient();
+  return async (item: { id: string; mediaType: MediaType; tmdbId: number } | undefined) => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: queryKeys.libraryAll }),
+      qc.invalidateQueries({ queryKey: queryKeys.searchAll }),
+      item ? qc.invalidateQueries({ queryKey: queryKeys.libraryItem(item.id) }) : Promise.resolve(),
+      item
+        ? qc.invalidateQueries({ queryKey: queryKeys.title(item.mediaType, item.tmdbId) })
+        : Promise.resolve(),
+    ]);
+  };
+}
+
+export function useLogWatchMutation() {
+  const invalidate = useInvalidateLibrary();
+  return useMutation({
+    mutationFn: (body: LogWatchRequest) => api.logWatch(body),
+    onSuccess: (res) => invalidate(res.item),
+  });
+}
+
+export function useUpdateWatchMutation() {
+  const invalidate = useInvalidateLibrary();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateWatchRequest }) =>
+      api.updateWatch(id, body),
+    onSuccess: (res) => invalidate(res.item),
+  });
+}
+
+export function useDeleteWatchMutation() {
+  const invalidate = useInvalidateLibrary();
+  return useMutation({
+    mutationFn: ({
+      id,
+    }: {
+      id: string;
+      item: { id: string; mediaType: MediaType; tmdbId: number };
+    }) => api.deleteWatch(id),
+    onSuccess: (_res, vars) => invalidate(vars.item),
+  });
+}
+
+export function useLogoutMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.logout(),
+    onSettled: () => qc.clear(),
+  });
+}

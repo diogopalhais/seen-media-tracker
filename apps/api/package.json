@@ -1,0 +1,37 @@
+{
+  "name": "@seen/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Seen HTTP API",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "start": "node dist/index.js",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/index.js --packages=external --alias:@seen/shared=../../packages/shared/src/index.ts --sourcemap",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "hash-password": "tsx scripts/hash-password.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.1",
+    "@hono/zod-validator": "^0.9.1",
+    "@node-rs/argon2": "^2.2.1",
+    "@seen/shared": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.13.7",
+    "pino": "^10.3.1",
+    "postgres": "^3.4.9",
+    "zod": "^4.6.2"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/node": "^22.20.2",
+    "drizzle-kit": "^0.31.10",
+    "esbuild": "^0.28.2",
+    "pino-pretty": "^13.1.3",
+    "tsx": "^4.23.13",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.11"
+  }
+}

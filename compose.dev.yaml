@@ -1,0 +1,24 @@
+# Local development database only. The API runs on the host with `pnpm dev:api`.
+#   pnpm db:up      # start Postgres on localhost:5434 (user/password/db: seen); override with SEEN_DB_PORT
+#   pnpm db:down    # stop it (data persists in the pgdata-dev volume)
+name: seen-dev
+
+services:
+  db:
+    image: postgres:17-alpine
+    ports:
+      - "${SEEN_DB_PORT:-5434}:5432"
+    environment:
+      POSTGRES_USER: seen
+      POSTGRES_PASSWORD: seen
+      POSTGRES_DB: seen
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seen -d seen"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  pgdata-dev:

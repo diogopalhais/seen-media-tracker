@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/dev-dist
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+.git
+.github
+.claude
+openspec
+apps/web
+*.md
