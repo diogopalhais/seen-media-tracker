@@ -12,7 +12,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { SeasonProgressHeader } from '../components/Progress.js';
 import { Button } from '../components/ui/Button.js';
-import { EmptyState, Poster, TmdbRating } from '../components/ui/Media.js';
+import { AudienceRating, EmptyState, Poster } from '../components/ui/Media.js';
 import { Screen } from '../components/ui/NavBar.js';
 import { ListSkeleton, Skeleton } from '../components/ui/Skeleton.js';
 import { ApiError } from '../lib/api.js';
@@ -306,7 +306,7 @@ function EpisodeRow({
               {episode.name}
             </span>
             {meta && <span className="text-footnote text-label-secondary">{meta}</span>}
-            <TmdbRating rating={episode.tmdbRating} size="small" />
+            <AudienceRating rating={episode.tmdbRating} size="small" />
           </div>
           <CaretDown
             weight="bold"

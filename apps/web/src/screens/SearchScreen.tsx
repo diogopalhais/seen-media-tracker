@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { Banner } from '../components/ui/Banner.js';
 import { Button } from '../components/ui/Button.js';
-import { EmptyState, MediaTypeBadge, Poster, TmdbRating } from '../components/ui/Media.js';
+import { AudienceRating, EmptyState, MediaTypeBadge, Poster } from '../components/ui/Media.js';
 import { Screen } from '../components/ui/NavBar.js';
 import { PosterRow } from '../components/ui/PosterRow.js';
 import { SearchField } from '../components/ui/SearchField.js';
@@ -128,7 +128,7 @@ export function SearchScreen() {
                     <span className="flex items-center gap-1 text-footnote text-label-secondary">
                       {r.releaseYear && <span>{r.releaseYear}</span>}
                       <MediaTypeBadge mediaType={r.mediaType} />
-                      <TmdbRating rating={r.tmdbRating} showCount={false} />
+                      <AudienceRating rating={r.tmdbRating} showCount={false} />
                     </span>
                   </span>
                   {r.inLibrary && (

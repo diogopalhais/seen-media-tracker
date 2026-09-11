@@ -1,4 +1,4 @@
-import { ArrowSquareOut, PencilSimple, Plus, Trash } from '@phosphor-icons/react';
+import { ArrowSquareOut, PencilSimple, Trash } from '@phosphor-icons/react';
 import type { WatchEntry } from '@seen/shared';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -9,15 +9,16 @@ import { Banner } from '../components/ui/Banner.js';
 import { Button } from '../components/ui/Button.js';
 import { InsetGroupedList, Row } from '../components/ui/InsetGroupedList.js';
 import {
+  AudienceRating,
   Backdrop,
   EmptyState,
   MediaTypeBadge,
   Poster,
   RatingBadge,
-  TmdbRating,
 } from '../components/ui/Media.js';
 import { Screen } from '../components/ui/NavBar.js';
 import { ListSkeleton, Skeleton } from '../components/ui/Skeleton.js';
+import { WatchActions } from '../components/WatchActions.js';
 import { ApiError } from '../lib/api.js';
 import { formatDate, formatRuntime, formatSeasons, seasonLabel } from '../lib/format.js';
 import { useBack } from '../lib/nav.js';
@@ -130,17 +131,7 @@ export function LibraryItemScreen() {
             <MediaTypeBadge mediaType={item.mediaType} />
             {meta && <span>{meta}</span>}
           </p>
-          <TmdbRating rating={item.tmdbRating} />
-          <div className="mt-0.5 flex items-center gap-1">
-            <RatingBadge rating={detail.rating} size="large" />
-            <span className="text-subheadline text-label-secondary">
-              {detail.watchCount === 0
-                ? `${detail.episodeWatches.length} ${detail.episodeWatches.length === 1 ? 'episode' : 'episodes'} watched`
-                : detail.watchCount === 1
-                  ? 'Watched once'
-                  : `Watched ${detail.watchCount} times`}
-            </span>
-          </div>
+          <AudienceRating rating={item.tmdbRating} />
         </div>
       </Backdrop>
 
@@ -161,17 +152,17 @@ export function LibraryItemScreen() {
         <p className="safe-x m-0 mt-4 text-callout leading-relaxed text-label">{item.overview}</p>
       )}
 
-      <div className="safe-x mt-5">
-        <Button
-          variant="filled"
-          size="large"
-          block
-          icon={<Plus weight="bold" className="size-5" aria-hidden="true" />}
-          onClick={() => setSheet({ open: true, mode: { kind: 'create' } })}
-        >
-          Log Another Watch
-        </Button>
-      </div>
+      <WatchActions
+        target={{
+          mediaType: item.mediaType,
+          tmdbId: item.tmdbId,
+          title: item.title,
+          releaseYear: item.releaseYear,
+          seasons: title.data?.seasons ?? null,
+          numberOfSeasons: item.numberOfSeasons,
+        }}
+        detail={detail}
+      />
 
       {deleteError && (
         <Banner tone="error" onDismiss={() => setDeleteError(null)}>

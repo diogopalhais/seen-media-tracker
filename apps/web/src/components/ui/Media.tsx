@@ -1,4 +1,4 @@
-import { FilmSlate, ImageBroken, Star, Television } from '@phosphor-icons/react';
+import { FilmSlate, ImageBroken, Star, Television, Users } from '@phosphor-icons/react';
 import { type MediaType, RATING_MAX, type TmdbRating as TmdbRatingValue } from '@seen/shared';
 import { useState } from 'react';
 import { cn } from '../../lib/cn.js';
@@ -159,10 +159,10 @@ const compactCount = new Intl.NumberFormat(undefined, {
 });
 
 /**
- * Community (TMDB) rating: average out of 10 plus vote count. Deliberately quiet and monochrome so it
- * never competes with the owner's own star rating.
+ * People's rating (TMDB community average out of 10, plus votes). Quiet, monochrome and unlabelled:
+ * TMDB is the only source, and its attribution lives in Settings. Never competes with the owner's star badge.
  */
-export function TmdbRating({
+export function AudienceRating({
   rating,
   className,
   showCount = true,
@@ -177,16 +177,18 @@ export function TmdbRating({
   return (
     <span
       role="img"
-      aria-label={`TMDB rating ${rating.average.toFixed(1)} out of 10 from ${rating.count} votes`}
+      aria-label={`People's rating ${rating.average.toFixed(1)} out of 10 from ${rating.count} votes`}
       className={cn(
         'inline-flex items-center gap-1 tabular-nums text-label-secondary',
         size === 'small' ? 'text-caption1' : 'text-footnote',
         className,
       )}
     >
-      <span className="rounded-[3px] bg-[#01b4e4] px-[4px] py-[1px] text-[0.5625rem] font-bold leading-none tracking-wide text-[#0d253f]">
-        TMDB
-      </span>
+      <Users
+        weight="fill"
+        className={cn(size === 'small' ? 'size-3' : 'size-3.5')}
+        aria-hidden="true"
+      />
       <span className="font-semibold text-label">{rating.average.toFixed(1)}</span>
       {showCount && rating.count > 0 && <span>· {compactCount.format(rating.count)}</span>}
     </span>

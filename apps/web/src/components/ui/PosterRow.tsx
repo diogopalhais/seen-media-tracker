@@ -1,7 +1,7 @@
 import { CheckCircle } from '@phosphor-icons/react';
 import type { SearchResult } from '@seen/shared';
 import { Link } from 'react-router';
-import { MediaTypeBadge, Poster, TmdbRating } from './Media.js';
+import { AudienceRating, MediaTypeBadge, Poster } from './Media.js';
 import { Skeleton } from './Skeleton.js';
 
 export interface PosterRowProps {
@@ -56,7 +56,7 @@ export function PosterRow({ title, items, mixed = false, loading = false }: Post
                     {r.releaseYear && <span>{r.releaseYear}</span>}
                     {mixed && <MediaTypeBadge mediaType={r.mediaType} />}
                   </span>
-                  <TmdbRating
+                  <AudienceRating
                     rating={r.tmdbRating}
                     size="small"
                     showCount={false}

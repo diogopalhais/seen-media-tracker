@@ -36,7 +36,7 @@ export interface LogWatchSheetProps {
   onOpenChange: (open: boolean) => void;
   target: WatchTarget;
   mode: SheetMode;
-  onSaved?: (res: WatchMutationResponse) => void;
+  onSaved?: ((res: WatchMutationResponse) => void) | undefined;
 }
 
 interface FormState {

@@ -1,26 +1,24 @@
-import { ArrowSquareOut, CheckCircle, Plus, SmileyMeh } from '@phosphor-icons/react';
+import { ArrowSquareOut, SmileyMeh } from '@phosphor-icons/react';
 import { MediaTypeSchema } from '@seen/shared';
-import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ContinueWatchingCard } from '../components/Progress.js';
 import { SeasonsList } from '../components/SeasonsList.js';
 import { Button } from '../components/ui/Button.js';
 import { InsetGroupedList, Row } from '../components/ui/InsetGroupedList.js';
 import {
+  AudienceRating,
   Backdrop,
   EmptyState,
   MediaTypeBadge,
   Poster,
-  RatingBadge,
-  TmdbRating,
 } from '../components/ui/Media.js';
 import { Screen } from '../components/ui/NavBar.js';
 import { Skeleton } from '../components/ui/Skeleton.js';
+import { WatchActions } from '../components/WatchActions.js';
 import { ApiError } from '../lib/api.js';
 import { formatRuntime, formatSeasons } from '../lib/format.js';
 import { useBack } from '../lib/nav.js';
 import { useLibraryItemQuery, useTitleQuery } from '../lib/queries.js';
-import { LogWatchSheet } from './LogWatchSheet.js';
 
 export function TitleScreen() {
   const params = useParams<{ mediaType: string; tmdbId: string }>();
@@ -30,10 +28,7 @@ export function TitleScreen() {
   const back = useBack('/search');
   const navigate = useNavigate();
   const query = useTitleQuery(valid ? mediaType.data : undefined, valid ? tmdbId : undefined);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const libraryItem = useLibraryItemQuery(
-    query.data?.mediaType === 'tv' ? (query.data.libraryItemId ?? undefined) : undefined,
-  );
+  const libraryItem = useLibraryItemQuery(query.data?.libraryItemId ?? undefined);
 
   if (!valid || query.isError) {
     const notFound = !valid || (query.error instanceof ApiError && query.error.status === 404);
@@ -99,16 +94,7 @@ export function TitleScreen() {
             <MediaTypeBadge mediaType={t.mediaType} />
             {meta && <span>{meta}</span>}
           </p>
-          <TmdbRating rating={t.tmdbRating} />
-          {t.inLibrary && (
-            <div className="mt-0.5 flex items-center gap-1">
-              <RatingBadge rating={t.rating} size="large" />
-              <span className="flex items-center gap-0.5 text-footnote font-medium text-success">
-                <CheckCircle weight="fill" className="size-4" aria-hidden="true" />
-                Seen
-              </span>
-            </div>
-          )}
+          <AudienceRating rating={t.tmdbRating} />
         </div>
       </Backdrop>
 
@@ -129,17 +115,18 @@ export function TitleScreen() {
         <p className="safe-x m-0 mt-4 text-callout leading-relaxed text-label">{t.overview}</p>
       )}
 
-      <div className="safe-x mt-5">
-        <Button
-          variant="filled"
-          size="large"
-          block
-          icon={<Plus weight="bold" className="size-5" aria-hidden="true" />}
-          onClick={() => setSheetOpen(true)}
-        >
-          Log Watch
-        </Button>
-      </div>
+      <WatchActions
+        target={{
+          mediaType: t.mediaType,
+          tmdbId: t.tmdbId,
+          title: t.title,
+          releaseYear: t.releaseYear,
+          seasons: t.seasons,
+          numberOfSeasons: t.numberOfSeasons,
+        }}
+        detail={libraryItem.data}
+        loading={Boolean(t.libraryItemId) && libraryItem.isPending}
+      />
 
       {t.mediaType === 'tv' && t.seasons && (
         <>
@@ -170,21 +157,6 @@ export function TitleScreen() {
           icon={<ArrowSquareOut className="size-5" aria-hidden="true" />}
         />
       </InsetGroupedList>
-
-      <LogWatchSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        mode={{ kind: 'create' }}
-        target={{
-          mediaType: t.mediaType,
-          tmdbId: t.tmdbId,
-          title: t.title,
-          releaseYear: t.releaseYear,
-          seasons: t.seasons,
-          numberOfSeasons: t.numberOfSeasons,
-        }}
-        onSaved={(res) => navigate(`/library/${res.item.id}`)}
-      />
     </Screen>
   );
 }

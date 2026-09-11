@@ -9,7 +9,7 @@ import {
 } from '../components/FilterSheet.js';
 import { Banner } from '../components/ui/Banner.js';
 import { Button, Spinner } from '../components/ui/Button.js';
-import { EmptyState, Poster, RatingBadge, TmdbRating } from '../components/ui/Media.js';
+import { AudienceRating, EmptyState, Poster, RatingBadge } from '../components/ui/Media.js';
 import { Screen } from '../components/ui/NavBar.js';
 import { PosterGridSkeleton } from '../components/ui/Skeleton.js';
 import { ApiError } from '../lib/api.js';
@@ -139,11 +139,6 @@ export function LibraryScreen() {
                       alt={item.title}
                       className="shadow-[var(--shadow-poster)]"
                     />
-                    <RatingBadge
-                      rating={item.rating}
-                      tone="glass"
-                      className="absolute left-2 top-2"
-                    />
                   </div>
                   <span className="line-clamp-2 text-subheadline font-semibold leading-snug text-label">
                     {item.title}
@@ -153,7 +148,7 @@ export function LibraryScreen() {
                     {item.watchCount > 1 ? ` · ${item.watchCount}×` : ''}
                     {item.episodesWatched > 0 ? ` · ${item.episodesWatched} eps` : ''}
                   </span>
-                  <TmdbRating
+                  <AudienceRating
                     rating={item.tmdbRating}
                     size="small"
                     showCount={false}
