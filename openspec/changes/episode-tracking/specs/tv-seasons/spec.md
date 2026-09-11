@@ -1,11 +1,15 @@
 ## MODIFIED Requirements
 
 ### Requirement: Season detail screen
-The season detail screen SHALL show the series title with the season name as the screen title, the season poster, air year, episode count, per-season progress ("N of M watched" with a progress bar) and overview, followed by the list of episodes. Each episode row SHALL show the still image, episode number, name, air date, runtime, community rating and a checkmark control reflecting whether the episode is watched; tapping the checkmark SHALL toggle it, and tapping the row SHALL expand it to reveal the overview plus a "Watched up to here" action that marks this and all earlier episodes of the season. The screen SHALL offer "Mark season watched" (or "Mark season unwatched" when complete) and a "Log Season N" action that opens the log-watch sheet with that season preselected. The screen SHALL be reachable from the seasons list on both the search title screen and the library item screen, and SHALL be reachable by direct URL.
+The season detail screen SHALL show the series title with the season name as the screen title, the season poster, air year, episode count, per-season progress ("N of M watched" with a progress bar) and overview, followed by the list of episodes. Each episode row SHALL show the still image, episode number, name, air date, runtime, community rating and a checkmark control reflecting whether the episode is watched; episodes that have not aired (unknown or future air date) SHALL show the upcoming air date and a disabled checkmark, and SHALL be excluded from bulk marking and from the season's progress total; tapping an enabled checkmark SHALL toggle it, and tapping the row SHALL expand it to reveal the overview plus a "Watched up to here" action that marks this and all earlier episodes of the season. The screen SHALL offer "Mark season watched" (or "Mark season unwatched" when complete) and a "Log Season N" action that opens the log-watch sheet with that season preselected. The screen SHALL be reachable from the seasons list on both the search title screen and the library item screen, and SHALL be reachable by direct URL.
 
 #### Scenario: Episodes listed with checkmarks
 - **WHEN** the owner opens a season with ten episodes of which three are watched
 - **THEN** ten rows are shown in order, the first three with filled checkmarks, and the header reads "3 of 10 watched"
+
+#### Scenario: Unaired episode cannot be marked
+- **WHEN** an episode's air date is later than today
+- **THEN** its row reads "Airs <date>", its checkmark is disabled, and "Mark season watched" leaves it untouched
 
 #### Scenario: Toggle an episode
 - **WHEN** the owner taps the checkmark on episode 4

@@ -1,6 +1,8 @@
 import {
   type EpisodeWatchesResponse,
+  isAired,
   LogWatchRequestSchema,
+  latestTodayOnEarth,
   SetEpisodesWatchedRequestSchema,
   UpdateWatchRequestSchema,
   type WatchMutationResponse,
@@ -10,7 +12,7 @@ import { z } from 'zod';
 import { ApiError } from '../errors.js';
 import type { LibraryRepository } from '../services/library.js';
 import { toMediaItem, toWatchEntry } from '../services/library.js';
-import { detailsFor, type MetadataProvider } from '../services/metadata/provider.js';
+import { detailsFor, type MetadataProvider, ProviderError } from '../services/metadata/provider.js';
 import type { AppEnv } from '../types.js';
 import { validate } from '../validate.js';
 import { mapProviderError } from './search.js';
@@ -76,6 +78,40 @@ export function watchRoutes(deps: WatchDeps): Hono<AppEnv> {
         throw ApiError.validation([
           { path: 'tmdbId', message: 'Episodes can only be tracked for TV series' },
         ]);
+      }
+      if (input.watched) {
+        // Only episodes that exist and have aired can be marked; verified against the (cached) season data.
+        const today = latestTodayOnEarth(now);
+        const bySeason = new Map<number, number[]>();
+        for (const e of input.episodes) {
+          bySeason.set(e.seasonNumber, [...(bySeason.get(e.seasonNumber) ?? []), e.episodeNumber]);
+        }
+        const problems: { path: string; message: string }[] = [];
+        for (const [seasonNumber, numbers] of bySeason) {
+          let season: Awaited<ReturnType<MetadataProvider['tvSeason']>> | null = null;
+          try {
+            season = await deps.provider.tvSeason(input.tmdbId, seasonNumber);
+          } catch (err) {
+            if (err instanceof ProviderError && err.kind === 'not_found') {
+              problems.push({ path: 'episodes', message: `Season ${seasonNumber} does not exist` });
+              continue;
+            }
+            mapProviderError(err);
+          }
+          for (const n of numbers) {
+            const episode = season.episodes.find((e) => e.episodeNumber === n);
+            if (!episode)
+              problems.push({ path: 'episodes', message: `S${seasonNumber} E${n} does not exist` });
+            else if (!isAired(episode.airDate, today)) {
+              problems.push({
+                path: 'episodes',
+                message: `S${seasonNumber} E${n} has not aired yet`,
+              });
+            }
+          }
+        }
+        if (problems.length > 0)
+          throw ApiError.validation(problems, 'Some episodes cannot be marked as watched');
       }
       const stillExists = await deps.library.setEpisodesWatched(
         item.id,

@@ -3,8 +3,10 @@ import {
   type Episode,
   type EpisodeWatch,
   episodeKey,
+  isAired,
   type SeasonDetails,
   type TitleDetails,
+  todayLocalDateString,
 } from '@seen/shared';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -91,22 +93,28 @@ export function SeasonScreen() {
   }
 
   const s = season.data;
-  const watchedCount = s
-    ? s.episodes.filter((e) => watchedSet.has(episodeKey(seasonNumber, e.episodeNumber))).length
-    : 0;
-  const allWatched = s ? s.episodeCount > 0 && watchedCount === s.episodeCount : false;
+  const today = todayLocalDateString();
+  const aired = (s?.episodes ?? []).filter((e) => isAired(e.airDate, today));
+  const watchedCount = aired.filter((e) =>
+    watchedSet.has(episodeKey(seasonNumber, e.episodeNumber)),
+  ).length;
+  const allWatched = aired.length > 0 && watchedCount === aired.length;
+
   const toggle = (episodeNumber: number, watched: boolean) =>
     setEpisodes.mutate({ episodes: [{ seasonNumber, episodeNumber }], watched });
   const markUpTo = (episodeNumber: number) =>
     setEpisodes.mutate({
-      episodes: (s?.episodes ?? [])
+      episodes: aired
         .filter((e) => e.episodeNumber <= episodeNumber)
         .map((e) => ({ seasonNumber, episodeNumber: e.episodeNumber })),
       watched: true,
     });
   const markSeason = (watched: boolean) =>
     setEpisodes.mutate({
-      episodes: (s?.episodes ?? []).map((e) => ({ seasonNumber, episodeNumber: e.episodeNumber })),
+      episodes: (watched ? aired : (s?.episodes ?? [])).map((e) => ({
+        seasonNumber,
+        episodeNumber: e.episodeNumber,
+      })),
       watched,
     });
   const screenTitle = s
@@ -149,7 +157,7 @@ export function SeasonScreen() {
                   .filter(Boolean)
                   .join(' · ')}
               </p>
-              <SeasonProgressHeader watched={watchedCount} total={s.episodeCount} />
+              <SeasonProgressHeader watched={watchedCount} total={aired.length} />
             </div>
           </div>
           {s.overview && (
@@ -157,7 +165,7 @@ export function SeasonScreen() {
           )}
 
           <div className="safe-x mt-5 flex flex-col gap-2 sm:flex-row">
-            {s.episodeCount > 0 && (
+            {aired.length > 0 && (
               <Button
                 variant="tinted"
                 size="large"
@@ -205,6 +213,7 @@ export function SeasonScreen() {
                   key={e.episodeNumber}
                   episode={e}
                   watched={watchedSet.has(episodeKey(seasonNumber, e.episodeNumber))}
+                  aired={isAired(e.airDate, today)}
                   onToggle={(w) => toggle(e.episodeNumber, w)}
                   onMarkUpTo={() => markUpTo(e.episodeNumber)}
                 />
@@ -242,17 +251,23 @@ function targetFrom(t: TitleDetails, _s: SeasonDetails) {
 function EpisodeRow({
   episode,
   watched,
+  aired,
   onToggle,
   onMarkUpTo,
 }: {
   episode: Episode;
   watched: boolean;
+  aired: boolean;
   onToggle: (watched: boolean) => void;
   onMarkUpTo: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const meta = [
-    episode.airDate ? formatDate(episode.airDate) : null,
+    episode.airDate
+      ? aired
+        ? formatDate(episode.airDate)
+        : `Airs ${formatDate(episode.airDate)}`
+      : 'Air date to be announced',
     formatRuntime(episode.runtimeMinutes),
   ]
     .filter(Boolean)
@@ -307,11 +322,18 @@ function EpisodeRow({
           type="button"
           role="checkbox"
           aria-checked={watched}
-          aria-label={`Episode ${episode.episodeNumber} watched`}
+          aria-label={
+            aired
+              ? `Episode ${episode.episodeNumber} watched`
+              : `Episode ${episode.episodeNumber} not aired yet`
+          }
+          disabled={!aired && !watched}
+          title={!aired && !watched ? 'Not aired yet' : undefined}
           onClick={() => onToggle(!watched)}
           className={cn(
             'hit-target pressable flex shrink-0 items-center justify-center',
             watched ? 'text-tint' : 'text-label-tertiary',
+            !aired && !watched && 'opacity-40',
           )}
         >
           {watched ? (
@@ -326,11 +348,13 @@ function EpisodeRow({
           {episode.overview && (
             <p className="m-0 text-subheadline leading-relaxed text-label">{episode.overview}</p>
           )}
-          <div>
-            <Button variant="tinted" onClick={onMarkUpTo} className="h-9 text-subheadline">
-              Watched up to here
-            </Button>
-          </div>
+          {aired && (
+            <div>
+              <Button variant="tinted" onClick={onMarkUpTo} className="h-9 text-subheadline">
+                Watched up to here
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </li>

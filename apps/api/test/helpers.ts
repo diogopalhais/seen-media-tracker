@@ -239,7 +239,9 @@ export class StubProvider implements MetadataProvider {
         episodeNumber: i + 1,
         name: `Episode ${i + 1}`,
         overview: `Overview ${i + 1}`,
-        airDate: season.airDate,
+        // The last episode of season 2 has not aired yet.
+        airDate:
+          seasonNumber === 2 && i === season.episodeCount - 1 ? '2999-01-01' : season.airDate,
         runtimeMinutes: 45,
         stillPath: i === 0 ? '/still.jpg' : null,
         voteAverage: 8 + i / 10,

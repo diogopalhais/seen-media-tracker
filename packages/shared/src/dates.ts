@@ -40,3 +40,11 @@ export const PastOrTodayDateSchema = DateStringSchema.refine(
   (value) => value <= latestTodayOnEarth(),
   'Date cannot be in the future',
 );
+
+/** An episode counts as aired once its air date is known and not after today (latest today on Earth by default). */
+export function isAired(
+  airDate: string | null | undefined,
+  today: string = latestTodayOnEarth(),
+): boolean {
+  return Boolean(airDate) && (airDate as string) <= today;
+}

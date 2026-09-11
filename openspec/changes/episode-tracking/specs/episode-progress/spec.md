@@ -5,7 +5,7 @@ Tracks which individual episodes of a TV series the owner has watched, so the ap
 ## ADDED Requirements
 
 ### Requirement: Mark episodes watched or unwatched
-The API SHALL expose a private endpoint that sets the watched state of one or more episodes of a TV series identified by TMDB id. The request SHALL carry a list of `{ seasonNumber, episodeNumber }` pairs (1 to 500), a `watched` boolean and an optional date watched (`YYYY-MM-DD`, not in the future, default today). Marking SHALL be idempotent: already-watched episodes keep their original date; unmarking episodes that are not watched is a no-op. When the series is not yet in the library and at least one episode is being marked watched, the API SHALL create the library item from provider metadata. The response SHALL return the library item and its complete list of episode watches.
+The API SHALL expose a private endpoint that sets the watched state of one or more episodes of a TV series identified by TMDB id. The request SHALL carry a list of `{ seasonNumber, episodeNumber }` pairs (1 to 500), a `watched` boolean and an optional date watched (`YYYY-MM-DD`, not in the future, default today). Marking SHALL be idempotent: already-watched episodes keep their original date; unmarking episodes that are not watched is a no-op. Marking SHALL be refused with a validation error for any episode that does not exist in the provider's season data or whose air date is unknown or later than today; unmarking never requires verification. When the series is not yet in the library and at least one episode is being marked watched, the API SHALL create the library item from provider metadata. The response SHALL return the library item and its complete list of episode watches.
 
 #### Scenario: Mark a single episode
 - **WHEN** the owner marks S2 E5 of a series watched
@@ -22,6 +22,10 @@ The API SHALL expose a private endpoint that sets the watched state of one or mo
 #### Scenario: First episode creates the library item
 - **WHEN** an episode is marked for a series not in the library
 - **THEN** a library item with the series snapshot is created and returned
+
+#### Scenario: Unaired or unknown episodes are refused
+- **WHEN** the owner tries to mark an episode whose air date is in the future or unknown, or an episode number the season does not have
+- **THEN** the API responds `400` with error code `validation_error` naming each offending episode and nothing is stored
 
 #### Scenario: Validation
 - **WHEN** the request has no episodes, a negative episode number, a future date, or targets a movie

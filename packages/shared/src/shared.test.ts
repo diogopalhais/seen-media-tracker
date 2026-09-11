@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DateStringSchema,
   formatRating,
+  isAired,
   isValidDateString,
   LogWatchRequestSchema,
   latestTodayOnEarth,
@@ -57,6 +58,16 @@ describe('dates', () => {
   });
   it('formats local today', () => {
     expect(todayLocalDateString(new Date(2026, 0, 5))).toBe('2026-01-05');
+  });
+});
+
+describe('isAired', () => {
+  it('requires a known air date on or before today', () => {
+    expect(isAired('2026-09-10', '2026-09-11')).toBe(true);
+    expect(isAired('2026-09-11', '2026-09-11')).toBe(true);
+    expect(isAired('2026-09-12', '2026-09-11')).toBe(false);
+    expect(isAired(null, '2026-09-11')).toBe(false);
+    expect(isAired(undefined, '2026-09-11')).toBe(false);
   });
 });
 

@@ -107,6 +107,23 @@ describe('PUT /api/v1/watches/episodes', () => {
     );
   });
 
+  it('refuses to mark episodes that have not aired or do not exist, but allows unmarking them', async () => {
+    const future = await mark([ep(2, 10)]);
+    expect(future.status).toBe(400);
+    expect((await json(future)).error.details).toEqual([
+      { path: 'episodes', message: 'S2 E10 has not aired yet' },
+    ]);
+    const missing = await mark([ep(2, 11), ep(7, 1)]);
+    expect(missing.status).toBe(400);
+    expect((await json(missing)).error.details.map((d: any) => d.message)).toEqual([
+      'S2 E11 does not exist',
+      'Season 7 does not exist',
+    ]);
+    expect((await json(await ctx.request('/api/v1/library', { token }))).items).toEqual([]);
+    await mark([ep(2, 9)]);
+    expect((await mark([ep(2, 10)], false)).status).toBe(200);
+  });
+
   it('rejects episode tracking for a movie already in the library', async () => {
     await logWatch(ctx, token, { mediaType: 'movie', tmdbId: 550, watchedOn: '2026-09-01' });
     const res = await set({ tmdbId: 550, episodes: [ep(1, 1)], watched: true });
