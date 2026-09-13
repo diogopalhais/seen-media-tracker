@@ -1,4 +1,4 @@
-import { CheckCircle, Star } from '@phosphor-icons/react';
+import { CheckCircle, Plus, Star } from '@phosphor-icons/react';
 import {
   type LibraryItemDetail,
   todayLocalDateString,
@@ -6,11 +6,11 @@ import {
 } from '@seen/shared';
 import { useEffect, useState } from 'react';
 import { ApiError } from '../lib/api.js';
+import { cn } from '../lib/cn.js';
 import { formatDate } from '../lib/format.js';
 import { useLogWatchMutation, useUpdateWatchMutation } from '../lib/queries.js';
 import { LogWatchSheet, type WatchTarget } from '../screens/LogWatchSheet.js';
 import { Button } from './ui/Button.js';
-import { RatingBadge } from './ui/Media.js';
 import { RatingPicker } from './ui/RatingPicker.js';
 import { Sheet } from './ui/Sheet.js';
 
@@ -60,72 +60,83 @@ export function WatchActions({ target, detail, loading = false, onCreated }: Wat
         ? 'Could not save. Please try again.'
         : null;
 
+  const ratedLabel = detail?.rating != null ? `${detail.rating}/10` : null;
+
   return (
-    <section className="safe-x mt-5" aria-label="Watched status">
-      {!watched ? (
-        <div className="flex flex-col items-stretch gap-2">
-          <Button
-            variant="filled"
-            size="large"
-            block
-            loading={logWatch.isPending || loading}
-            icon={<CheckCircle weight="fill" className="size-5" aria-hidden="true" />}
-            onClick={() => void markWatched()}
-          >
-            Mark as Watched
-          </Button>
+    <section className="flex w-full flex-col items-center gap-2" aria-label="Watched status">
+      <div className="flex w-full max-w-md items-stretch justify-center gap-2">
+        {!watched ? (
+          <>
+            <Button
+              variant="filled"
+              size="large"
+              className="pill flex-1"
+              loading={logWatch.isPending || loading}
+              icon={<CheckCircle weight="bold" className="size-5" aria-hidden="true" />}
+              onClick={() => void markWatched()}
+            >
+              Mark Watched
+            </Button>
+            <Button
+              variant="glass"
+              size="large"
+              className="pill"
+              aria-label="Log with details"
+              icon={<Plus weight="bold" className="size-5" aria-hidden="true" />}
+              onClick={() => setLogOpen(true)}
+            >
+              Log
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              variant="filled"
+              size="large"
+              className="pill flex-1"
+              icon={<CheckCircle weight="fill" className="size-5" aria-hidden="true" />}
+              onClick={() => setLogOpen(true)}
+              aria-label="Watched. Log another watch"
+            >
+              Watched
+            </Button>
+            <Button
+              variant="glass"
+              size="large"
+              className="pill"
+              icon={
+                <Star
+                  weight="fill"
+                  className={cn('size-5', ratedLabel && 'text-star')}
+                  aria-hidden="true"
+                />
+              }
+              onClick={() => setRateOpen(true)}
+              aria-label={
+                ratedLabel ? `Your rating ${detail?.rating} out of 10. Change rating` : 'Rate'
+              }
+            >
+              {ratedLabel ?? 'Rate'}
+            </Button>
+          </>
+        )}
+      </div>
+      {watched && (
+        <p className="m-0 text-footnote text-label-secondary">
+          {latest ? `Watched ${formatDate(latest.watchedOn)}` : 'Watched'}
+          {entries.length > 1 ? ` · ${entries.length} times` : ''}
+          <span className="text-label-tertiary"> · </span>
           <button
             type="button"
             onClick={() => setLogOpen(true)}
-            className="hit-target pressable self-center text-subheadline font-medium text-tint"
+            className="pressable font-medium text-label-secondary underline-offset-2 hover:underline"
           >
-            Log with details
+            Log another
           </button>
-        </div>
-      ) : (
-        <div className="card flex flex-col gap-3 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--success)_15%,transparent)] text-success">
-              <CheckCircle weight="fill" className="size-6" aria-hidden="true" />
-            </span>
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="text-headline text-label">Watched</span>
-              <span className="text-footnote text-label-secondary">
-                {latest ? formatDate(latest.watchedOn) : ''}
-                {entries.length > 1 ? ` · ${entries.length} times` : ''}
-              </span>
-            </div>
-            {detail?.rating != null ? (
-              <button
-                type="button"
-                onClick={() => setRateOpen(true)}
-                aria-label={`Your rating ${detail.rating} out of 10. Change rating`}
-                className="hit-target pressable"
-              >
-                <RatingBadge rating={detail.rating} size="large" />
-              </button>
-            ) : (
-              <Button
-                variant="tinted"
-                onClick={() => setRateOpen(true)}
-                icon={<Star weight="fill" className="size-4" aria-hidden="true" />}
-                className="h-9"
-              >
-                Rate
-              </Button>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => setLogOpen(true)}
-            className="hit-target pressable self-start text-footnote font-medium text-label-secondary"
-          >
-            Log another watch
-          </button>
-        </div>
+        </p>
       )}
       {errorMessage && (
-        <p role="alert" className="m-0 mt-2 text-footnote text-destructive">
+        <p role="alert" className="m-0 text-footnote text-destructive">
           {errorMessage}
         </p>
       )}

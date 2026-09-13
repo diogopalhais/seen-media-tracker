@@ -135,11 +135,14 @@ export function EmptyState({
 export function Backdrop({
   src,
   ambientSrc,
+  layout = 'row',
   children,
 }: {
   src: string | null;
   /** Artwork used for the blurred ambient tint when there is no backdrop (usually the poster). */
   ambientSrc?: string | null;
+  /** `row`: poster beside text pulled over the backdrop's edge. `hero`: centred content over a taller fade. */
+  layout?: 'row' | 'hero';
   children: React.ReactNode;
 }) {
   const [failed, setFailed] = useState(false);
@@ -154,17 +157,43 @@ export function Backdrop({
         </div>
       )}
       {show && (
-        <div className="grain relative aspect-[16/9] max-h-64 w-full overflow-hidden">
+        <div
+          className={cn(
+            'relative w-full overflow-hidden',
+            layout === 'row' && 'grain',
+            layout === 'hero'
+              ? 'aspect-[4/3] max-h-80 sm:aspect-[16/9] [mask-image:linear-gradient(to_bottom,black_35%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_35%,transparent_100%)]'
+              : 'aspect-[16/9] max-h-64',
+          )}
+        >
           <img
             src={src as string}
             alt=""
             className="h-full w-full object-cover"
             onError={() => setFailed(true)}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-bg-grouped" />
+          <div
+            className={cn(
+              'absolute inset-0',
+              layout === 'hero'
+                ? 'bg-black/10'
+                : 'bg-gradient-to-b from-black/10 via-transparent to-bg-grouped',
+            )}
+          />
         </div>
       )}
-      <div className={cn('relative safe-x flex gap-4', show ? '-mt-20' : 'pt-6')}>{children}</div>
+      <div
+        className={cn(
+          'relative safe-x',
+          layout === 'hero'
+            ? show
+              ? '-mt-44'
+              : 'pt-6'
+            : cn('flex gap-4', show ? '-mt-20' : 'pt-6'),
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }

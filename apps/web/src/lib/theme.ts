@@ -2,16 +2,17 @@ import { useCallback, useSyncExternalStore } from 'react';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 const KEY = 'seen.theme';
-const LIGHT_BAR = '#f5f5f7';
-const DARK_BAR = '#0a0a0b';
+const LIGHT_BAR = '#f2f2f6';
+const DARK_BAR = '#0d0d0f';
 const listeners = new Set<() => void>();
 
+/** Dark is the default appearance; "system" is an explicit choice. */
 function read(): ThemePreference {
   try {
     const v = localStorage.getItem(KEY);
-    return v === 'light' || v === 'dark' ? v : 'system';
+    return v === 'light' || v === 'dark' || v === 'system' ? v : 'dark';
   } catch {
-    return 'system';
+    return 'dark';
   }
 }
 
@@ -40,8 +41,7 @@ export function applyTheme(pref: ThemePreference = read()): void {
 
 export function setThemePreference(pref: ThemePreference): void {
   try {
-    if (pref === 'system') localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, pref);
+    localStorage.setItem(KEY, pref);
   } catch {
     // Storage unavailable; the in-page attribute still applies for this session.
   }
@@ -56,7 +56,7 @@ export function useThemePreference(): [ThemePreference, (p: ThemePreference) => 
       return () => listeners.delete(l);
     },
     read,
-    () => 'system' as ThemePreference,
+    () => 'dark' as ThemePreference,
   );
   return [pref, useCallback(setThemePreference, [])];
 }

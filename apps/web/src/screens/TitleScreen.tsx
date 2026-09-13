@@ -3,20 +3,14 @@ import { MediaTypeSchema } from '@seen/shared';
 import { useNavigate, useParams } from 'react-router';
 import { ContinueWatchingCard } from '../components/Progress.js';
 import { SeasonsList } from '../components/SeasonsList.js';
+import { TitleHero } from '../components/TitleHero.js';
 import { Button } from '../components/ui/Button.js';
 import { InsetGroupedList, Row } from '../components/ui/InsetGroupedList.js';
-import {
-  AudienceRating,
-  Backdrop,
-  EmptyState,
-  MediaTypeBadge,
-  Poster,
-} from '../components/ui/Media.js';
+import { EmptyState } from '../components/ui/Media.js';
 import { Screen } from '../components/ui/NavBar.js';
 import { Skeleton } from '../components/ui/Skeleton.js';
 import { WatchActions } from '../components/WatchActions.js';
 import { ApiError } from '../lib/api.js';
-import { formatRuntime, formatSeasons } from '../lib/format.js';
 import { useBack } from '../lib/nav.js';
 import { useLibraryItemQuery, useTitleQuery } from '../lib/queries.js';
 
@@ -73,59 +67,35 @@ export function TitleScreen() {
     );
   }
 
-  const meta = [t.releaseYear, formatRuntime(t.runtimeMinutes), formatSeasons(t.numberOfSeasons)]
-    .filter(Boolean)
-    .join(' · ');
-
   return (
-    <Screen title={t.title} onBack={back} backLabel="Search" animate>
-      <Backdrop src={t.backdropUrl} ambientSrc={t.posterUrl}>
-        <Poster
-          src={t.posterUrl}
-          alt={t.title}
-          className="w-28 shrink-0 shadow-[var(--shadow-poster)]"
-        />
-        <div className="flex min-w-0 flex-1 flex-col justify-end gap-0.5 pb-1">
-          <h2 className="display m-0 text-title2 leading-tight">{t.title}</h2>
-          {t.originalTitle !== t.title && (
-            <p className="m-0 text-footnote text-label-secondary">{t.originalTitle}</p>
-          )}
-          <p className="m-0 flex flex-wrap items-center gap-1 text-footnote text-label-secondary">
-            <MediaTypeBadge mediaType={t.mediaType} />
-            {meta && <span>{meta}</span>}
-          </p>
-          <AudienceRating rating={t.tmdbRating} />
-        </div>
-      </Backdrop>
-
-      {t.genres.length > 0 && (
-        <ul className="safe-x m-0 mt-4 flex list-none flex-wrap gap-1.5 py-0">
-          {t.genres.map((g) => (
-            <li
-              key={g.id}
-              className="rounded-full bg-fill px-1 py-[2px] text-caption1 text-label-secondary"
-            >
-              {g.name}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {t.overview && (
-        <p className="safe-x m-0 mt-4 text-callout leading-relaxed text-label">{t.overview}</p>
-      )}
-
-      <WatchActions
-        target={{
-          mediaType: t.mediaType,
-          tmdbId: t.tmdbId,
-          title: t.title,
-          releaseYear: t.releaseYear,
-          seasons: t.seasons,
-          numberOfSeasons: t.numberOfSeasons,
-        }}
-        detail={libraryItem.data}
-        loading={Boolean(t.libraryItemId) && libraryItem.isPending}
+    <Screen title={t.title} onBack={back} backLabel="Search" transparent animate>
+      <TitleHero
+        title={t.title}
+        originalTitle={t.originalTitle}
+        mediaType={t.mediaType}
+        releaseYear={t.releaseYear}
+        runtimeMinutes={t.runtimeMinutes}
+        numberOfSeasons={t.numberOfSeasons}
+        genres={t.genres}
+        posterUrl={t.posterUrl}
+        backdropUrl={t.backdropUrl}
+        overview={t.overview}
+        tmdbRating={t.tmdbRating}
+        ownerRating={libraryItem.data?.rating ?? t.rating}
+        actions={
+          <WatchActions
+            target={{
+              mediaType: t.mediaType,
+              tmdbId: t.tmdbId,
+              title: t.title,
+              releaseYear: t.releaseYear,
+              seasons: t.seasons,
+              numberOfSeasons: t.numberOfSeasons,
+            }}
+            detail={libraryItem.data}
+            loading={Boolean(t.libraryItemId) && libraryItem.isPending}
+          />
+        }
       />
 
       {t.mediaType === 'tv' && t.seasons && (

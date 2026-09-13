@@ -56,9 +56,9 @@ function wrap(ui: React.ReactNode) {
 describe('WatchActions', () => {
   it('leads with Mark as Watched when nothing is logged', () => {
     wrap(<WatchActions target={target} detail={undefined} />);
-    expect(screen.getByRole('button', { name: 'Mark as Watched' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mark Watched' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Log with details' })).toBeInTheDocument();
-    expect(screen.queryByText('Watched')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Watched/ })).toBeNull();
   });
 
   it('shows the watched status with date and a Rate action when unrated', () => {
@@ -74,12 +74,12 @@ describe('WatchActions', () => {
         }}
       />,
     );
-    expect(screen.getByText('Watched')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Watched. Log another watch' })).toBeInTheDocument();
     // Date formatting follows the machine locale; assert the year is shown.
     expect(screen.getByText(/2026/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Rate' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Log another watch' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Mark as Watched' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Log another' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mark Watched' })).toBeNull();
   });
 
   it('shows the rating badge and the number of times when rated and rewatched', () => {
@@ -96,7 +96,9 @@ describe('WatchActions', () => {
       />,
     );
     expect(screen.getByText(/2 times/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Your rating 7 out of 10/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Your rating 7 out of 10/ })).toHaveTextContent(
+      '7/10',
+    );
     expect(screen.queryByRole('button', { name: 'Rate' })).toBeNull();
   });
 });

@@ -80,8 +80,8 @@ export default defineConfig(({ mode }) => {
           scope: '/',
           display: 'standalone',
           orientation: 'portrait',
-          background_color: '#f5f5f7',
-          theme_color: '#f5f5f7',
+          background_color: '#0d0d0f',
+          theme_color: '#0d0d0f',
           lang: 'en',
           categories: ['entertainment', 'lifestyle'],
           icons: [

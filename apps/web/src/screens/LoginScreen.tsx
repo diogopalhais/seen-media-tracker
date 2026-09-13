@@ -101,7 +101,7 @@ export function LoginScreen() {
             onChange={(e) => setPassword(e.target.value)}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? 'password-error' : undefined}
-            className="h-[3.25rem] w-full rounded-2xl border border-card-border bg-bg-grouped-secondary px-4 text-body text-label shadow-[var(--shadow-card)] placeholder:text-label-tertiary focus:outline-none focus:ring-2 focus:ring-tint/50 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-destructive/60"
+            className="h-12 w-full rounded-full border border-card-border bg-bg-grouped-secondary px-5 text-body text-label shadow-[var(--shadow-card)] placeholder:text-label-tertiary focus:outline-none focus:ring-2 focus:ring-tint/50 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-destructive/60"
           />
           {error && (
             <p id="password-error" role="alert" className="m-0 px-1 text-footnote text-destructive">

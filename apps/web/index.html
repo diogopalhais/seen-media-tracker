@@ -6,8 +6,8 @@
     <title>Seen</title>
     <meta name="description" content="Track the movies and TV series you have watched and rate them." />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f5f7" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0b" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f2f2f6" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d0d0f" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -20,6 +20,7 @@
       try {
         const t = localStorage.getItem('seen.theme');
         if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        else if (t !== 'system') document.documentElement.setAttribute('data-theme', 'dark');
       } catch (_e) {}
     </script>
   </head>

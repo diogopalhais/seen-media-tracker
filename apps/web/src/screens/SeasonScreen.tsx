@@ -1,4 +1,4 @@
-import { CaretDown, CheckCircle, Circle, Plus, SmileyMeh } from '@phosphor-icons/react';
+import { CheckCircle, Circle, Plus, SmileyMeh } from '@phosphor-icons/react';
 import {
   type Episode,
   type EpisodeWatch,
@@ -164,7 +164,7 @@ export function SeasonScreen() {
             <p className="safe-x m-0 mt-4 text-callout leading-relaxed text-label">{s.overview}</p>
           )}
 
-          <div className="safe-x mt-5 flex flex-col gap-2 sm:flex-row">
+          <div className="safe-x mt-5 flex items-stretch gap-2">
             {aired.length > 0 && (
               <Button
                 variant="tinted"
@@ -179,8 +179,9 @@ export function SeasonScreen() {
                 }
                 onClick={() => markSeason(!allWatched)}
                 loading={setEpisodes.isPending}
+                className="pill flex-1 whitespace-nowrap"
               >
-                {allWatched ? 'Mark season unwatched' : 'Mark season watched'}
+                {allWatched ? 'Unmark all' : 'All watched'}
               </Button>
             )}
             <Button
@@ -189,6 +190,7 @@ export function SeasonScreen() {
               block
               icon={<Plus weight="bold" className="size-5" aria-hidden="true" />}
               onClick={() => setSheetOpen(true)}
+              className="pill flex-1"
             >
               {s.seasonNumber === 0 ? 'Log Specials' : `Log Season ${s.seasonNumber}`}
             </Button>
@@ -212,6 +214,7 @@ export function SeasonScreen() {
                 <EpisodeRow
                   key={e.episodeNumber}
                   episode={e}
+                  seasonNumber={seasonNumber}
                   watched={watchedSet.has(episodeKey(seasonNumber, e.episodeNumber))}
                   aired={isAired(e.airDate, today)}
                   onToggle={(w) => toggle(e.episodeNumber, w)}
@@ -247,47 +250,53 @@ function targetFrom(t: TitleDetails, _s: SeasonDetails) {
   };
 }
 
-/** Episode row: tap the row for the overview and bulk action, tap the checkmark to toggle watched. */
+/**
+ * Episode row: wide still, bold title, muted date, "S1, E1 · 42m", two-line synopsis, and a check
+ * circle. Tapping the row expands the synopsis and reveals "Watched up to here".
+ */
 function EpisodeRow({
   episode,
+  seasonNumber,
   watched,
   aired,
   onToggle,
   onMarkUpTo,
 }: {
   episode: Episode;
+  seasonNumber: number;
   watched: boolean;
   aired: boolean;
   onToggle: (watched: boolean) => void;
   onMarkUpTo: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const meta = [
-    episode.airDate
-      ? aired
-        ? formatDate(episode.airDate)
-        : `Airs ${formatDate(episode.airDate)}`
-      : 'Air date to be announced',
+  const dateLine = episode.airDate
+    ? aired
+      ? formatDate(episode.airDate)
+      : `Airs ${formatDate(episode.airDate)}`
+    : 'Air date to be announced';
+  const codeLine = [
+    `S${seasonNumber}, E${episode.episodeNumber}`,
     formatRuntime(episode.runtimeMinutes),
   ]
     .filter(Boolean)
     .join(' · ');
   return (
-    <li className={cn(watched && 'bg-[color-mix(in_srgb,var(--tint)_4%,transparent)]')}>
-      <div className="flex items-start gap-2 py-3 pr-2 pl-4">
+    <li className={cn(watched && 'bg-[color-mix(in_srgb,var(--tint)_5%,transparent)]')}>
+      <div className="flex items-start gap-3 py-3 pr-2 pl-4">
         <button
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((o) => !o)}
           className="pressable flex min-w-0 flex-1 items-start gap-3 text-left"
         >
-          <div className="relative aspect-video w-24 shrink-0 overflow-hidden rounded-lg bg-fill">
+          <div className="relative aspect-video w-28 shrink-0 overflow-hidden rounded-xl bg-fill">
             {episode.stillUrl ? (
               <img
                 src={episode.stillUrl}
                 alt=""
                 loading="lazy"
-                className={cn('h-full w-full object-cover', watched && 'opacity-70')}
+                className={cn('h-full w-full object-cover', watched && 'opacity-60')}
               />
             ) : (
               <span className="flex h-full w-full items-center justify-center text-caption1 font-semibold text-label-tertiary">
@@ -298,24 +307,35 @@ function EpisodeRow({
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span
               className={cn(
-                'text-body font-medium',
-                watched ? 'text-label-secondary' : 'text-label',
+                'text-body font-semibold leading-snug',
+                watched || !aired ? 'text-label-secondary' : 'text-label',
               )}
             >
-              <span className="text-label-secondary">{episode.episodeNumber}. </span>
               {episode.name}
             </span>
-            {meta && <span className="text-footnote text-label-secondary">{meta}</span>}
-            <AudienceRating rating={episode.tmdbRating} size="small" />
-          </div>
-          <CaretDown
-            weight="bold"
-            aria-hidden="true"
-            className={cn(
-              'mt-1 size-4 shrink-0 text-label-tertiary transition-transform duration-200',
-              open && 'rotate-180',
+            <span className="text-footnote text-label-secondary">{dateLine}</span>
+            {episode.overview && (
+              <span
+                className={cn(
+                  'text-caption1 leading-snug text-label-secondary',
+                  !open && 'line-clamp-2',
+                )}
+              >
+                {episode.overview}
+              </span>
             )}
-          />
+            <span className="mt-0.5 flex items-center gap-2 text-caption1 text-label-tertiary">
+              <span>{codeLine}</span>
+              <AudienceRating rating={episode.tmdbRating} size="small" showCount={false} />
+            </span>
+            {open && aired && (
+              <div className="mt-2">
+                <Button variant="glass" onClick={onMarkUpTo} className="pill h-9 text-subheadline">
+                  Watched up to here
+                </Button>
+              </div>
+            )}
+          </div>
         </button>
         {/* biome-ignore lint/a11y/useSemanticElements: a styled toggle button with checkbox semantics keeps the 44pt target and icon */}
         <button
@@ -343,20 +363,6 @@ function EpisodeRow({
           )}
         </button>
       </div>
-      {open && (
-        <div className="flex flex-col gap-2 px-4 pb-3">
-          {episode.overview && (
-            <p className="m-0 text-subheadline leading-relaxed text-label">{episode.overview}</p>
-          )}
-          {aired && (
-            <div>
-              <Button variant="tinted" onClick={onMarkUpTo} className="h-9 text-subheadline">
-                Watched up to here
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
     </li>
   );
 }

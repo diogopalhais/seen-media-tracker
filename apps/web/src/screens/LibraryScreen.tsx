@@ -10,7 +10,7 @@ import {
 import { Banner } from '../components/ui/Banner.js';
 import { Button, Spinner } from '../components/ui/Button.js';
 import { AudienceRating, EmptyState, Poster, RatingBadge } from '../components/ui/Media.js';
-import { Screen } from '../components/ui/NavBar.js';
+import { IconCircleButton, Screen } from '../components/ui/NavBar.js';
 import { PosterGridSkeleton } from '../components/ui/Skeleton.js';
 import { ApiError } from '../lib/api.js';
 import { useLibraryQuery } from '../lib/queries.js';
@@ -57,21 +57,20 @@ export function LibraryScreen() {
       title="Library"
       large
       trailing={
-        <button
-          type="button"
+        <IconCircleButton
           aria-label={active ? 'Filter and sort (active)' : 'Filter and sort'}
           aria-haspopup="dialog"
           onClick={() => setFilterOpen(true)}
-          className="hit-target pressable relative -mr-2 flex items-center justify-center text-tint"
+          className="relative"
         >
-          <SlidersHorizontal weight="bold" className="size-6" aria-hidden="true" />
+          <SlidersHorizontal weight="bold" className="size-5" aria-hidden="true" />
           {active && (
             <span
               aria-hidden="true"
-              className="absolute right-2 top-2 size-2 rounded-full bg-tint ring-2 ring-bg-grouped"
+              className="absolute right-1 top-1 size-2 rounded-full bg-tint ring-2 ring-bg-grouped"
             />
           )}
-        </button>
+        </IconCircleButton>
       }
     >
       {errorMessage && items.length > 0 && (

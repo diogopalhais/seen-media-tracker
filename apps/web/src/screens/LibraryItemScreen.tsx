@@ -4,23 +4,17 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ContinueWatchingCard } from '../components/Progress.js';
 import { SeasonsList } from '../components/SeasonsList.js';
+import { TitleHero } from '../components/TitleHero.js';
 import { AlertDialog } from '../components/ui/AlertDialog.js';
 import { Banner } from '../components/ui/Banner.js';
 import { Button } from '../components/ui/Button.js';
 import { InsetGroupedList, Row } from '../components/ui/InsetGroupedList.js';
-import {
-  AudienceRating,
-  Backdrop,
-  EmptyState,
-  MediaTypeBadge,
-  Poster,
-  RatingBadge,
-} from '../components/ui/Media.js';
+import { EmptyState, RatingBadge } from '../components/ui/Media.js';
 import { Screen } from '../components/ui/NavBar.js';
 import { ListSkeleton, Skeleton } from '../components/ui/Skeleton.js';
 import { WatchActions } from '../components/WatchActions.js';
 import { ApiError } from '../lib/api.js';
-import { formatDate, formatRuntime, formatSeasons, seasonLabel } from '../lib/format.js';
+import { formatDate, seasonLabel } from '../lib/format.js';
 import { useBack } from '../lib/nav.js';
 import { useDeleteWatchMutation, useLibraryItemQuery, useTitleQuery } from '../lib/queries.js';
 import { LogWatchSheet, type SheetMode } from './LogWatchSheet.js';
@@ -106,62 +100,34 @@ export function LibraryItemScreen() {
     );
   }
 
-  const meta = [
-    item.releaseYear,
-    formatRuntime(item.runtimeMinutes),
-    formatSeasons(item.numberOfSeasons),
-  ]
-    .filter(Boolean)
-    .join(' · ');
-
   return (
-    <Screen title={item.title} onBack={back} backLabel="Library" animate>
-      <Backdrop src={item.backdropUrl} ambientSrc={item.posterUrl}>
-        <Poster
-          src={item.posterUrl}
-          alt={item.title}
-          className="w-28 shrink-0 shadow-[var(--shadow-poster)]"
-        />
-        <div className="flex min-w-0 flex-1 flex-col justify-end gap-0.5 pb-1">
-          <h2 className="display m-0 text-title2 leading-tight">{item.title}</h2>
-          {item.originalTitle !== item.title && (
-            <p className="m-0 text-footnote text-label-secondary">{item.originalTitle}</p>
-          )}
-          <p className="m-0 flex flex-wrap items-center gap-1 text-footnote text-label-secondary">
-            <MediaTypeBadge mediaType={item.mediaType} />
-            {meta && <span>{meta}</span>}
-          </p>
-          <AudienceRating rating={item.tmdbRating} />
-        </div>
-      </Backdrop>
-
-      {item.genres.length > 0 && (
-        <ul className="safe-x m-0 mt-4 flex list-none flex-wrap gap-1.5 py-0">
-          {item.genres.map((g) => (
-            <li
-              key={g.id}
-              className="rounded-full bg-fill px-1 py-[2px] text-caption1 text-label-secondary"
-            >
-              {g.name}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {item.overview && (
-        <p className="safe-x m-0 mt-4 text-callout leading-relaxed text-label">{item.overview}</p>
-      )}
-
-      <WatchActions
-        target={{
-          mediaType: item.mediaType,
-          tmdbId: item.tmdbId,
-          title: item.title,
-          releaseYear: item.releaseYear,
-          seasons: title.data?.seasons ?? null,
-          numberOfSeasons: item.numberOfSeasons,
-        }}
-        detail={detail}
+    <Screen title={item.title} onBack={back} backLabel="Library" transparent animate>
+      <TitleHero
+        title={item.title}
+        originalTitle={item.originalTitle}
+        mediaType={item.mediaType}
+        releaseYear={item.releaseYear}
+        runtimeMinutes={item.runtimeMinutes}
+        numberOfSeasons={item.numberOfSeasons}
+        genres={item.genres}
+        posterUrl={item.posterUrl}
+        backdropUrl={item.backdropUrl}
+        overview={item.overview}
+        tmdbRating={item.tmdbRating}
+        ownerRating={detail.rating}
+        actions={
+          <WatchActions
+            target={{
+              mediaType: item.mediaType,
+              tmdbId: item.tmdbId,
+              title: item.title,
+              releaseYear: item.releaseYear,
+              seasons: title.data?.seasons ?? null,
+              numberOfSeasons: item.numberOfSeasons,
+            }}
+            detail={detail}
+          />
+        }
       />
 
       {deleteError && (
