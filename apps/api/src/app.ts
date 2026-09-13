@@ -15,6 +15,7 @@ import { requestLogger } from './middleware/request-logger.js';
 import { noStore, securityHeaders } from './middleware/security-headers.js';
 import { authRoutes } from './routes/auth.js';
 import { healthRoutes } from './routes/health.js';
+import { importRoutes } from './routes/import.js';
 import { libraryRoutes } from './routes/library.js';
 import { publicRoutes } from './routes/public.js';
 import { searchRoutes } from './routes/search.js';
@@ -105,6 +106,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   app.route('/api/v1', searchRoutes({ provider: deps.provider, library, requireAuth }));
   app.route('/api/v1', watchRoutes({ provider: deps.provider, library, requireAuth, now }));
   app.route('/api/v1', libraryRoutes({ library, provider: deps.provider, requireAuth, now }));
+  app.route('/api/v1', importRoutes({ provider: deps.provider, library, requireAuth, now }));
   app.route('/api/v1/public', publicRoutes({ library, now }));
 
   app.notFound((c) => sendError(c, ApiError.notFound('Route')));

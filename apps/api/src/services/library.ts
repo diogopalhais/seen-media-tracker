@@ -245,6 +245,59 @@ export class LibraryRepository {
     return row;
   }
 
+  /** Entry for an item on a date with a given season (null = whole series/movie), if any. */
+  async findEntryOn(
+    itemId: string,
+    watchedOn: string,
+    season: number | null,
+  ): Promise<WatchEntryRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(watchEntries)
+      .where(
+        and(
+          eq(watchEntries.mediaItemId, itemId),
+          eq(watchEntries.watchedOn, watchedOn),
+          season === null ? sql`${watchEntries.season} is null` : eq(watchEntries.season, season),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** Most recent entry for an item, optionally restricted to a season (null = series-level entries only). */
+  async latestEntry(
+    itemId: string,
+    season: number | null | 'any' = 'any',
+  ): Promise<WatchEntryRow | null> {
+    const conditions = [eq(watchEntries.mediaItemId, itemId)];
+    if (season === null) conditions.push(sql`${watchEntries.season} is null`);
+    else if (season !== 'any') conditions.push(eq(watchEntries.season, season));
+    const [row] = await this.db
+      .select()
+      .from(watchEntries)
+      .where(and(...conditions))
+      .orderBy(...entryOrder)
+      .limit(1);
+    return row ?? null;
+  }
+
+  /** Inserts one episode watch unless it already exists; returns true when inserted. */
+  async insertEpisodeWatchIfMissing(
+    itemId: string,
+    seasonNumber: number,
+    episodeNumber: number,
+    watchedOn: string,
+    now: Date,
+  ): Promise<boolean> {
+    const rows = await this.db
+      .insert(episodeWatches)
+      .values({ mediaItemId: itemId, seasonNumber, episodeNumber, watchedOn, createdAt: now })
+      .onConflictDoNothing()
+      .returning({ id: episodeWatches.id });
+    return rows.length > 0;
+  }
+
   async getEntry(entryId: string): Promise<{ entry: WatchEntryRow; item: MediaItemRow } | null> {
     const [row] = await this.db
       .select({ entry: watchEntries, item: mediaItems })

@@ -26,6 +26,9 @@ import {
   type SetEpisodesWatchedRequest,
   type TitleDetails,
   TitleDetailsSchema,
+  type TraktImportRecord,
+  type TraktImportResult,
+  TraktImportResultSchema,
   type UpdateWatchRequest,
   type WatchMutationResponse,
   WatchMutationResponseSchema,
@@ -190,6 +193,12 @@ export const api = {
       schema: WatchMutationResponseSchema,
     }),
   deleteWatch: (id: string) => request<void>(`/api/v1/watches/${id}`, { method: 'DELETE' }),
+  importTrakt: (records: TraktImportRecord[]) =>
+    request<TraktImportResult>('/api/v1/import/trakt', {
+      method: 'POST',
+      body: { records },
+      schema: TraktImportResultSchema,
+    }),
   setEpisodesWatched: (body: SetEpisodesWatchedRequest) =>
     request<EpisodeWatchesResponse>('/api/v1/watches/episodes', {
       method: 'PUT',

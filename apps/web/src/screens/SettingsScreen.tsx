@@ -1,6 +1,7 @@
 import {
   ArrowSquareOut,
   DownloadSimple,
+  FileArrowUp,
   PlusSquare,
   ShareNetwork,
   SignOut,
@@ -8,6 +9,7 @@ import {
 import { TMDB_ATTRIBUTION, TMDB_SITE_BASE } from '@seen/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { ImportTraktSheet } from '../components/ImportTraktSheet.js';
 import { AlertDialog } from '../components/ui/AlertDialog.js';
 import { InsetGroupedList, Row } from '../components/ui/InsetGroupedList.js';
 import { Screen } from '../components/ui/NavBar.js';
@@ -25,6 +27,7 @@ export function SettingsScreen() {
   const logout = useLogoutMutation();
   const navigate = useNavigate();
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const doLogout = async () => {
     try {
@@ -104,6 +107,18 @@ export function SettingsScreen() {
         </InsetGroupedList>
       )}
 
+      <InsetGroupedList
+        header="Your data"
+        footer="Bring your history and ratings over from Trakt. Running it again never duplicates."
+      >
+        <Row
+          label="Import from Trakt"
+          detail="From the Trakt data export (zip or JSON)"
+          icon={<FileArrowUp className="size-5" aria-hidden="true" />}
+          onPress={() => setImportOpen(true)}
+        />
+      </InsetGroupedList>
+
       <InsetGroupedList header="About" footer={TMDB_ATTRIBUTION}>
         <Row label="Version" value={APP_VERSION} />
         <Row
@@ -129,6 +144,8 @@ export function SettingsScreen() {
           onPress={() => setConfirmLogout(true)}
         />
       </InsetGroupedList>
+
+      <ImportTraktSheet open={importOpen} onOpenChange={setImportOpen} />
 
       <AlertDialog
         open={confirmLogout}
