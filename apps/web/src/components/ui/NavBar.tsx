@@ -55,21 +55,17 @@ export function Screen({
     const el = sentinelRef.current;
     if (!el) return;
     const pane = el.closest<HTMLElement>('[data-pane]');
-    if (transparent && !large) {
-      // Hero screens: the bar turns to glass once the content has scrolled a little.
-      const target: HTMLElement | Window = pane ?? window;
-      const read = () => setCollapsed((pane ? pane.scrollTop : window.scrollY) > 72);
-      read();
-      target.addEventListener('scroll', read, { passive: true });
-      return () => target.removeEventListener('scroll', read);
-    }
-    if (typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setCollapsed(entry ? entry.intersectionRatio < 0.35 : false),
-      { root: pane, threshold: [0, 0.35, 1], rootMargin: '-44px 0px 0px 0px' },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
+    const target: HTMLElement | Window = pane ?? window;
+    const BAR = 52;
+    // Collapse once the large title has scrolled under the bar (root screens), or after a short scroll (hero screens).
+    const read = () => {
+      const y = pane ? pane.scrollTop : window.scrollY;
+      const threshold = large ? Math.max(8, el.offsetTop + el.offsetHeight - BAR) : 72;
+      setCollapsed(y > threshold);
+    };
+    read();
+    target.addEventListener('scroll', read, { passive: true });
+    return () => target.removeEventListener('scroll', read);
   }, [large, transparent]);
 
   const showTitle = collapsed || (!large && !transparent);
@@ -79,7 +75,14 @@ export function Screen({
       <header
         className={cn(
           'sticky top-0 z-30 safe-top transition-[box-shadow,background-color] duration-200',
-          collapsed ? 'bar-material hairline-b' : transparent ? 'bg-transparent' : 'bg-bg-grouped',
+          // Root and hero screens: the bar overlays the content (no reserved row) and only shows once collapsed.
+          (large || transparent) &&
+            'h-[calc(3.25rem+env(safe-area-inset-top,0px))] -mb-[calc(3.25rem+env(safe-area-inset-top,0px))]',
+          collapsed
+            ? 'bar-material hairline-b'
+            : large || transparent
+              ? 'pointer-events-none bg-transparent'
+              : 'bg-bg-grouped',
         )}
       >
         <div className="safe-x grid h-[3.25rem] grid-cols-[1fr_auto_1fr] items-center">
@@ -104,7 +107,10 @@ export function Screen({
       </header>
 
       {large && (
-        <div ref={sentinelRef} className="safe-x flex items-center justify-between gap-3 pt-1 pb-3">
+        <div
+          ref={sentinelRef}
+          className="safe-x safe-top flex items-center justify-between gap-3 pb-3 [padding-top:calc(env(safe-area-inset-top,0px)+0.75rem)]"
+        >
           <p className="display m-0 min-w-0 truncate text-large-title" aria-hidden="true">
             {title}
           </p>
@@ -138,7 +144,7 @@ export function Screen({
       <div
         className={cn(
           'flex-1 pb-[calc(3.75rem+env(safe-area-inset-bottom,0px)+1.5rem)] md:pb-6',
-          transparent && !large && '-mt-[3.25rem]',
+          false,
         )}
       >
         {children}
