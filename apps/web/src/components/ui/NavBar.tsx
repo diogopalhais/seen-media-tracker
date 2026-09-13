@@ -98,16 +98,26 @@ export function Screen({
           >
             {title}
           </h1>
-          <div className="flex justify-end gap-2">{trailing}</div>
+          <div className="flex justify-end gap-2">{large && !collapsed ? null : trailing}</div>
         </div>
         {accessory && !large && <div className="safe-x pb-2">{accessory}</div>}
       </header>
 
       {large && (
-        <div ref={sentinelRef} className="safe-x pt-1 pb-3">
-          <p className="display m-0 text-large-title" aria-hidden="true">
+        <div ref={sentinelRef} className="safe-x flex items-center justify-between gap-3 pt-1 pb-3">
+          <p className="display m-0 min-w-0 truncate text-large-title" aria-hidden="true">
             {title}
           </p>
+          {trailing && (
+            <div
+              className={cn(
+                'flex shrink-0 items-center gap-2 transition-opacity duration-150',
+                collapsed && 'pointer-events-none opacity-0',
+              )}
+            >
+              {trailing}
+            </div>
+          )}
         </div>
       )}
       {transparent && !large && (
