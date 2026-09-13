@@ -16,7 +16,7 @@ export interface PosterRowProps {
 export function PosterRow({ title, items, mixed = false, loading = false }: PosterRowProps) {
   return (
     <section className="mt-5" aria-label={title}>
-      <h3 className="safe-x m-0 mb-2 text-title3">{title}</h3>
+      <h3 className="display safe-x m-0 mb-2 text-title3">{title}</h3>
       <ul className="no-scrollbar m-0 flex snap-x snap-mandatory gap-3 overflow-x-auto px-margin py-0 [scroll-padding-inline:1rem] md:px-[var(--spacing-margin-wide)]">
         {loading || !items
           ? Array.from({ length: 6 }, (_, i) => (
@@ -31,7 +31,7 @@ export function PosterRow({ title, items, mixed = false, loading = false }: Post
               <li key={`${r.mediaType}-${r.tmdbId}`} className="w-[7.25rem] shrink-0 snap-start">
                 <Link
                   to={`/search/${r.mediaType}/${r.tmdbId}`}
-                  className="pressable flex flex-col gap-1.5 no-underline"
+                  className="pressable poster-hover flex flex-col gap-1.5 rounded-card no-underline"
                 >
                   <div className="relative">
                     <Poster

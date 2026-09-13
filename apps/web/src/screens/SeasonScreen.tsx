@@ -148,7 +148,7 @@ export function SeasonScreen() {
               <p className="m-0 text-footnote font-semibold uppercase tracking-[0.05em] text-label-secondary">
                 {seriesTitle}
               </p>
-              <h2 className="m-0 text-title2 leading-tight">{screenTitle}</h2>
+              <h2 className="display m-0 text-title2 leading-tight">{screenTitle}</h2>
               <p className="m-0 text-footnote text-label-secondary">
                 {[
                   s.airDate ? s.airDate.slice(0, 4) : null,

@@ -49,7 +49,11 @@ export function LoginScreen() {
   };
 
   return (
-    <main className="fade-enter safe-top safe-bottom flex min-h-full flex-col items-center justify-center bg-bg-grouped px-margin">
+    <main className="fade-enter safe-top safe-bottom relative flex min-h-full flex-col items-center justify-center overflow-hidden bg-bg-grouped px-margin">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-70 [background:radial-gradient(60%_50%_at_20%_15%,color-mix(in_srgb,var(--tint)_28%,transparent),transparent_70%),radial-gradient(50%_40%_at_85%_85%,color-mix(in_srgb,#0a84ff_22%,transparent),transparent_70%)]"
+      />
       <form
         onSubmit={onSubmit}
         className="flex w-full max-w-xs flex-col items-stretch gap-2"
@@ -63,7 +67,7 @@ export function LoginScreen() {
             height={72}
             className="rounded-[1.25rem] shadow-[var(--shadow-poster)]"
           />
-          <h1 className="m-0 text-large-title">Seen</h1>
+          <h1 className="display m-0 text-large-title">Seen</h1>
           <p className="m-0 text-center text-subheadline text-label-secondary">
             Your movies and TV series, remembered.
           </p>

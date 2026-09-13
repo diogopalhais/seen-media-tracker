@@ -111,7 +111,7 @@ export function SearchScreen() {
               Updating results…
             </Banner>
           )}
-          <ul className="safe-x m-0 mt-1 list-none py-0" aria-label="Search results">
+          <ul className="reveal safe-x m-0 mt-1 list-none py-0" aria-label="Search results">
             {results.map((r) => (
               <li key={`${r.mediaType}-${r.tmdbId}`}>
                 <Link

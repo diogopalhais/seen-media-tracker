@@ -85,7 +85,7 @@ export function Screen({
 
       {large && (
         <div ref={sentinelRef} className="safe-x pt-1 pb-2">
-          <p className="m-0 text-large-title" aria-hidden="true">
+          <p className="display m-0 text-large-title" aria-hidden="true">
             {title}
           </p>
         </div>

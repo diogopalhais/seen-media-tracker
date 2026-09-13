@@ -126,12 +126,12 @@ export function LibraryScreen() {
             }
           />
         ) : (
-          <ul className="poster-grid m-0 list-none p-0">
+          <ul className="poster-grid reveal m-0 list-none p-0">
             {items.map((item) => (
               <li key={item.id}>
                 <Link
                   to={`/library/${item.id}`}
-                  className="pressable flex flex-col gap-1.5 rounded-card no-underline focus-visible:outline-offset-4"
+                  className="pressable poster-hover flex flex-col gap-1.5 rounded-card no-underline focus-visible:outline-offset-4"
                 >
                   <div className="relative">
                     <Poster

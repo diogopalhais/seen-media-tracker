@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { App } from './app/App.js';
 import { applyTheme, watchSystemTheme } from './lib/theme.js';
+import '@fontsource-variable/outfit';
 import './styles/app.css';
 
 applyTheme();

@@ -47,8 +47,8 @@
     --label-quaternary: rgba(235, 235, 245, 0.14);
     --bg: #000000;
     --bg-secondary: #17171a;
-    --bg-grouped: #0a0a0b;
-    --bg-grouped-secondary: #17171a;
+    --bg-grouped: #000000;
+    --bg-grouped-secondary: #141417;
     --bg-elevated: #1f1f23;
     --separator: rgba(255, 255, 255, 0.1);
     --separator-opaque: #2c2c30;
@@ -62,7 +62,7 @@
     --warning: #ffb340;
     --star: #ffc93c;
     --gray: #8a8a8f;
-    --bar-bg: rgba(10, 10, 11, 0.72);
+    --bar-bg: rgba(0, 0, 0, 0.72);
     --glass: rgba(28, 28, 32, 0.72);
     --glass-border: rgba(255, 255, 255, 0.08);
     --overlay: rgba(0, 0, 0, 0.6);
@@ -80,8 +80,8 @@
   --label-quaternary: rgba(235, 235, 245, 0.14);
   --bg: #000000;
   --bg-secondary: #17171a;
-  --bg-grouped: #0a0a0b;
-  --bg-grouped-secondary: #17171a;
+  --bg-grouped: #000000;
+  --bg-grouped-secondary: #141417;
   --bg-elevated: #1f1f23;
   --separator: rgba(255, 255, 255, 0.1);
   --separator-opaque: #2c2c30;
@@ -95,7 +95,7 @@
   --warning: #ffb340;
   --star: #ffc93c;
   --gray: #8a8a8f;
-  --bar-bg: rgba(10, 10, 11, 0.72);
+  --bar-bg: rgba(0, 0, 0, 0.72);
   --glass: rgba(28, 28, 32, 0.72);
   --glass-border: rgba(255, 255, 255, 0.08);
   --overlay: rgba(0, 0, 0, 0.6);
@@ -312,6 +312,83 @@
   .no-scrollbar {
     scrollbar-width: none;
   }
+  /* Ambient artwork: a blurred, saturated copy of the poster/backdrop that tints the header area. */
+  .ambient {
+    position: absolute;
+    inset: -20% -10%;
+    background-size: cover;
+    background-position: center 20%;
+    filter: blur(48px) saturate(1.6);
+    opacity: 0.55;
+    transform: scale(1.1);
+    pointer-events: none;
+  }
+  :root[data-theme="dark"] .ambient,
+  :root:not([data-theme="light"]) .ambient {
+    opacity: 0.45;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .ambient {
+      opacity: 0.55;
+    }
+  }
+  /* Fine film grain over hero imagery; SVG turbulence, no network. */
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.08;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  /* Staggered reveal for grids and shelves: each child fades up with a small delay. */
+  .reveal > * {
+    animation: reveal-up var(--duration-screen) var(--ease-ios) both;
+  }
+  .reveal > *:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  .reveal > *:nth-child(2) {
+    animation-delay: 30ms;
+  }
+  .reveal > *:nth-child(3) {
+    animation-delay: 60ms;
+  }
+  .reveal > *:nth-child(4) {
+    animation-delay: 90ms;
+  }
+  .reveal > *:nth-child(5) {
+    animation-delay: 120ms;
+  }
+  .reveal > *:nth-child(6) {
+    animation-delay: 150ms;
+  }
+  .reveal > *:nth-child(7) {
+    animation-delay: 180ms;
+  }
+  .reveal > *:nth-child(8) {
+    animation-delay: 210ms;
+  }
+  .reveal > *:nth-child(n + 9) {
+    animation-delay: 240ms;
+  }
+  .poster-hover {
+    transition:
+      transform 200ms var(--ease-ios),
+      box-shadow 200ms var(--ease-ios);
+  }
+  @media (hover: hover) {
+    .poster-hover:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow);
+    }
+  }
+  .display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    font-feature-settings: "ss01";
+  }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -325,6 +402,16 @@
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 @keyframes fade-in {

@@ -79,14 +79,14 @@ export function TitleScreen() {
 
   return (
     <Screen title={t.title} onBack={back} backLabel="Search" animate>
-      <Backdrop src={t.backdropUrl}>
+      <Backdrop src={t.backdropUrl} ambientSrc={t.posterUrl}>
         <Poster
           src={t.posterUrl}
           alt={t.title}
           className="w-28 shrink-0 shadow-[var(--shadow-poster)]"
         />
         <div className="flex min-w-0 flex-1 flex-col justify-end gap-0.5 pb-1">
-          <h2 className="m-0 text-title2 leading-tight">{t.title}</h2>
+          <h2 className="display m-0 text-title2 leading-tight">{t.title}</h2>
           {t.originalTitle !== t.title && (
             <p className="m-0 text-footnote text-label-secondary">{t.originalTitle}</p>
           )}

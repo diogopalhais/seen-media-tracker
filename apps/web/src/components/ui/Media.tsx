@@ -121,7 +121,7 @@ export function EmptyState({
       <div className="flex size-16 items-center justify-center rounded-2xl bg-fill text-label-secondary [&>svg]:size-8">
         {icon}
       </div>
-      <h3 className="m-0 text-title3">{title}</h3>
+      <h3 className="display m-0 text-title3">{title}</h3>
       <p className="m-0 text-subheadline leading-relaxed text-label-secondary">{message}</p>
       {action && <div className="mt-1">{action}</div>}
     </div>
@@ -132,24 +132,40 @@ export function EmptyState({
  * Wide header image that fades into the grouped background, with the children (poster row) pulled up
  * over its lower edge. If the image is missing or fails to load, children render normally.
  */
-export function Backdrop({ src, children }: { src: string | null; children: React.ReactNode }) {
+export function Backdrop({
+  src,
+  ambientSrc,
+  children,
+}: {
+  src: string | null;
+  /** Artwork used for the blurred ambient tint when there is no backdrop (usually the poster). */
+  ambientSrc?: string | null;
+  children: React.ReactNode;
+}) {
   const [failed, setFailed] = useState(false);
   const show = Boolean(src) && !failed;
+  const ambient = show ? (src as string) : (ambientSrc ?? null);
   return (
-    <>
+    <div className="relative">
+      {ambient && (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <div className="ambient" style={{ backgroundImage: `url("${ambient}")` }} />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-bg-grouped" />
+        </div>
+      )}
       {show && (
-        <div className="relative aspect-[16/9] max-h-56 w-full overflow-hidden bg-fill">
+        <div className="grain relative aspect-[16/9] max-h-64 w-full overflow-hidden">
           <img
             src={src as string}
             alt=""
             className="h-full w-full object-cover"
             onError={() => setFailed(true)}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-bg-grouped" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-bg-grouped" />
         </div>
       )}
-      <div className={cn('safe-x flex gap-4', show ? '-mt-16' : 'pt-4')}>{children}</div>
-    </>
+      <div className={cn('relative safe-x flex gap-4', show ? '-mt-20' : 'pt-6')}>{children}</div>
+    </div>
   );
 }
 
