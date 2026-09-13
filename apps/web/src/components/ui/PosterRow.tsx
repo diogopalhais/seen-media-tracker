@@ -1,7 +1,8 @@
 import { CaretRight, CheckCircle } from '@phosphor-icons/react';
 import type { SearchResult } from '@seen/shared';
 import { Link } from 'react-router';
-import { AudienceRating, MediaTypeBadge, Poster } from './Media.js';
+import { Poster } from './Media.js';
+import { MediaCardText } from './MediaCardText.js';
 import { Skeleton } from './Skeleton.js';
 
 export interface PosterRowProps {
@@ -11,6 +12,8 @@ export interface PosterRowProps {
   /** Show the media type badge (for rows that mix movies and TV). */
   mixed?: boolean;
   loading?: boolean;
+  /** Tab root the cards link under (default `/search`). */
+  basePath?: string;
 }
 
 /** Shelf header: bold title with a chevron and a muted one-line subtitle. */
@@ -33,6 +36,7 @@ export function PosterRow({
   items,
   mixed = false,
   loading = false,
+  basePath = '/search',
 }: PosterRowProps) {
   return (
     <section className="mt-6" aria-label={title}>
@@ -41,7 +45,7 @@ export function PosterRow({
         {loading || !items
           ? Array.from({ length: 6 }, (_, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: static placeholder list
-              <li key={i} className="w-36 shrink-0 snap-start" aria-hidden="true">
+              <li key={i} className="w-40 shrink-0 snap-start" aria-hidden="true">
                 <Skeleton className="aspect-[2/3] w-full rounded-card" />
                 <Skeleton className="mt-2 h-3.5 w-4/5" />
                 <Skeleton className="mt-1.5 h-3 w-full" />
@@ -49,9 +53,9 @@ export function PosterRow({
               </li>
             ))
           : items.map((r) => (
-              <li key={`${r.mediaType}-${r.tmdbId}`} className="w-36 shrink-0 snap-start">
+              <li key={`${r.mediaType}-${r.tmdbId}`} className="w-40 shrink-0 snap-start">
                 <Link
-                  to={`/search/${r.mediaType}/${r.tmdbId}`}
+                  to={`${basePath}/${r.mediaType}/${r.tmdbId}`}
                   className="pressable poster-hover flex flex-col gap-1.5 rounded-card no-underline"
                 >
                   <div className="relative">
@@ -70,22 +74,20 @@ export function PosterRow({
                       </span>
                     )}
                   </div>
-                  <span className="line-clamp-1 text-subheadline font-semibold text-label">
-                    {r.title}
-                  </span>
-                  {r.overview ? (
-                    <span className="-mt-1 line-clamp-2 text-caption1 leading-snug text-label-secondary">
-                      {r.overview}
-                    </span>
-                  ) : (
-                    <span className="-mt-1 text-caption1 text-label-secondary">
-                      {r.releaseYear ?? ''}
-                    </span>
-                  )}
-                  <span className="-mt-0.5 flex flex-wrap items-center gap-1.5 text-caption1 text-label-secondary">
-                    {mixed && <MediaTypeBadge mediaType={r.mediaType} />}
-                    <AudienceRating rating={r.tmdbRating} size="small" showCount={false} />
-                  </span>
+                  <MediaCardText
+                    title={r.title}
+                    titleLines={2}
+                    meta={
+                      r.overview ? (
+                        <span className="line-clamp-2">{r.overview}</span>
+                      ) : (
+                        r.releaseYear
+                      )
+                    }
+                    mediaType={r.mediaType}
+                    showType={mixed}
+                    tmdbRating={r.tmdbRating}
+                  />
                 </Link>
               </li>
             ))}

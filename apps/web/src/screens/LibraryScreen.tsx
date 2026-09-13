@@ -9,7 +9,8 @@ import {
 } from '../components/FilterSheet.js';
 import { Banner } from '../components/ui/Banner.js';
 import { Button, Spinner } from '../components/ui/Button.js';
-import { AudienceRating, EmptyState, Poster, RatingBadge } from '../components/ui/Media.js';
+import { EmptyState, Poster } from '../components/ui/Media.js';
+import { MediaCardText } from '../components/ui/MediaCardText.js';
 import { IconCircleButton, Screen } from '../components/ui/NavBar.js';
 import { PosterGridSkeleton } from '../components/ui/Skeleton.js';
 import { ApiError } from '../lib/api.js';
@@ -130,7 +131,7 @@ export function LibraryScreen() {
               <li key={item.id}>
                 <Link
                   to={`/library/${item.id}`}
-                  className="pressable poster-hover flex flex-col gap-1.5 rounded-card no-underline focus-visible:outline-offset-4"
+                  className="pressable poster-hover flex flex-col gap-2 rounded-card no-underline focus-visible:outline-offset-4"
                 >
                   <div className="relative">
                     <Poster
@@ -139,18 +140,18 @@ export function LibraryScreen() {
                       className="shadow-[var(--shadow-poster)]"
                     />
                   </div>
-                  <span className="line-clamp-2 text-subheadline font-semibold leading-snug text-label">
-                    {item.title}
-                  </span>
-                  <span className="-mt-1 text-footnote text-label-secondary">
-                    {item.releaseYear ?? ''}
-                    {item.watchCount > 1 ? ` · ${item.watchCount}×` : ''}
-                    {item.episodesWatched > 0 ? ` · ${item.episodesWatched} eps` : ''}
-                  </span>
-                  <span className="-mt-1 flex flex-wrap items-center gap-2">
-                    <AudienceRating rating={item.tmdbRating} size="small" showCount={false} />
-                    <RatingBadge rating={item.rating} />
-                  </span>
+                  <MediaCardText
+                    title={item.title}
+                    meta={[
+                      item.releaseYear ?? null,
+                      item.watchCount > 1 ? `${item.watchCount}×` : null,
+                      item.episodesWatched > 0 ? `${item.episodesWatched} eps` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    tmdbRating={item.tmdbRating}
+                    ownerRating={item.rating}
+                  />
                 </Link>
               </li>
             ))}

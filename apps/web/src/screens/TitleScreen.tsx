@@ -1,6 +1,6 @@
 import { ArrowSquareOut, SmileyMeh } from '@phosphor-icons/react';
 import { MediaTypeSchema } from '@seen/shared';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { ContinueWatchingCard } from '../components/Progress.js';
 import { SeasonsList } from '../components/SeasonsList.js';
 import { TitleHero } from '../components/TitleHero.js';
@@ -19,7 +19,9 @@ export function TitleScreen() {
   const mediaType = MediaTypeSchema.safeParse(params.mediaType);
   const tmdbId = Number(params.tmdbId);
   const valid = mediaType.success && Number.isInteger(tmdbId) && tmdbId > 0;
-  const back = useBack('/search');
+  const base = useLocation().pathname.startsWith('/discover') ? '/discover' : '/search';
+  const backLabel = base === '/discover' ? 'Discover' : 'Search';
+  const back = useBack(base);
   const navigate = useNavigate();
   const query = useTitleQuery(valid ? mediaType.data : undefined, valid ? tmdbId : undefined);
   const libraryItem = useLibraryItemQuery(query.data?.libraryItemId ?? undefined);
@@ -27,7 +29,7 @@ export function TitleScreen() {
   if (!valid || query.isError) {
     const notFound = !valid || (query.error instanceof ApiError && query.error.status === 404);
     return (
-      <Screen title="Not Found" onBack={back} backLabel="Search" animate>
+      <Screen title="Not Found" onBack={back} backLabel={backLabel} animate>
         <EmptyState
           icon={<SmileyMeh />}
           title={notFound ? "This title doesn't exist" : "Couldn't load this title"}
@@ -38,8 +40,8 @@ export function TitleScreen() {
           }
           action={
             notFound ? (
-              <Button variant="tinted" onClick={() => navigate('/search', { replace: true })}>
-                Back to Search
+              <Button variant="tinted" onClick={() => navigate(base, { replace: true })}>
+                Back
               </Button>
             ) : (
               <Button variant="tinted" onClick={() => void query.refetch()}>
@@ -55,7 +57,7 @@ export function TitleScreen() {
   const t = query.data;
   if (!t) {
     return (
-      <Screen title=" " onBack={back} backLabel="Search" animate>
+      <Screen title=" " onBack={back} backLabel={backLabel} animate>
         <div className="safe-x flex gap-2 py-2">
           <Skeleton className="aspect-[2/3] w-28 rounded-card" />
           <div className="flex flex-1 flex-col gap-1 pt-1">
@@ -68,7 +70,7 @@ export function TitleScreen() {
   }
 
   return (
-    <Screen title={t.title} onBack={back} backLabel="Search" transparent animate>
+    <Screen title={t.title} onBack={back} backLabel={backLabel} transparent animate>
       <TitleHero
         title={t.title}
         originalTitle={t.originalTitle}
@@ -105,10 +107,10 @@ export function TitleScreen() {
               tmdbId={t.tmdbId}
               seasons={t.seasons}
               watches={libraryItem.data.episodeWatches}
-              basePath={`/search/tv/${t.tmdbId}`}
+              basePath={`${base}/tv/${t.tmdbId}`}
             />
           )}
-          <SeasonsList seasons={t.seasons} basePath={`/search/tv/${t.tmdbId}`} />
+          <SeasonsList seasons={t.seasons} basePath={`${base}/tv/${t.tmdbId}`} />
         </>
       )}
 

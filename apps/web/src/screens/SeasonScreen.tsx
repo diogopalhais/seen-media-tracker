@@ -9,7 +9,7 @@ import {
   todayLocalDateString,
 } from '@seen/shared';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { SeasonProgressHeader } from '../components/Progress.js';
 import { Button } from '../components/ui/Button.js';
 import { AudienceRating, EmptyState, Poster } from '../components/ui/Media.js';
@@ -43,7 +43,8 @@ export function SeasonScreen() {
   const tmdbId = paramTmdbId ?? item.data?.item.tmdbId;
   const validSeason = Number.isInteger(seasonNumber) && seasonNumber >= 0;
   const validId = tmdbId !== undefined && Number.isInteger(tmdbId) && tmdbId > 0;
-  const parentPath = params.itemId ? `/library/${params.itemId}` : `/search/tv/${params.tmdbId}`;
+  const tabRoot = useLocation().pathname.startsWith('/discover') ? '/discover' : '/search';
+  const parentPath = params.itemId ? `/library/${params.itemId}` : `${tabRoot}/tv/${params.tmdbId}`;
   const back = useBack(parentPath);
   const navigate = useNavigate();
   const title = useTitleQuery(validId ? 'tv' : undefined, validId ? tmdbId : undefined);

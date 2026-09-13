@@ -1,10 +1,12 @@
-import { FilmStrip, Gear, MagnifyingGlass } from '@phosphor-icons/react';
+import { Compass, FilmStrip, Gear, MagnifyingGlass } from '@phosphor-icons/react';
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { type Location, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
 import { Banner } from '../components/ui/Banner.js';
 import { TabBar, type TabDefinition } from '../components/ui/TabBar.js';
 import { useIsAuthenticated } from '../lib/auth.js';
+import { recordVisit } from '../lib/history-log.js';
 import { useOnline } from '../lib/online.js';
+import { DiscoverScreen } from '../screens/DiscoverScreen.js';
 import { LibraryItemScreen } from '../screens/LibraryItemScreen.js';
 import { LibraryScreen } from '../screens/LibraryScreen.js';
 import { NotFoundScreen } from '../screens/NotFoundScreen.js';
@@ -15,6 +17,7 @@ import { TitleScreen } from '../screens/TitleScreen.js';
 
 const TABS: TabDefinition[] = [
   { id: 'library', label: 'Library', icon: FilmStrip, rootPath: '/library' },
+  { id: 'discover', label: 'Discover', icon: Compass, rootPath: '/discover' },
   { id: 'search', label: 'Search', icon: MagnifyingGlass, rootPath: '/search' },
   { id: 'settings', label: 'Settings', icon: Gear, rootPath: '/settings' },
 ];
@@ -29,6 +32,13 @@ const TAB_ROUTES: Record<string, ReactNode> = {
       <Route path="/library" element={<LibraryScreen />} />
       <Route path="/library/:itemId" element={<LibraryItemScreen />} />
       <Route path="/library/:itemId/season/:seasonNumber" element={<SeasonScreen />} />
+    </>
+  ),
+  discover: (
+    <>
+      <Route path="/discover" element={<DiscoverScreen />} />
+      <Route path="/discover/:mediaType/:tmdbId" element={<TitleScreen />} />
+      <Route path="/discover/tv/:tmdbId/season/:seasonNumber" element={<SeasonScreen />} />
     </>
   ),
   search: (
@@ -103,6 +113,7 @@ export function RootLayout() {
   const [lastLocations, setLastLocations] = useState<Record<string, Location>>({});
 
   useEffect(() => {
+    recordVisit(location.pathname + location.search);
     if (activeTab)
       setLastLocations((prev) =>
         prev[activeTab.id] === location ? prev : { ...prev, [activeTab.id]: location },
