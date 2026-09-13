@@ -194,8 +194,8 @@ export function LogWatchSheet({ open, onOpenChange, target, mode, onSaved }: Log
       dirty={dirty && !pending}
       trailing={
         <Button
-          variant="plain"
-          className="-mr-2 font-semibold"
+          variant="filled"
+          className="pill -mr-1 h-9 px-4 text-subheadline"
           onClick={save}
           loading={pending}
           disabled={!form.watchedOn}
@@ -205,16 +205,16 @@ export function LogWatchSheet({ open, onOpenChange, target, mode, onSaved }: Log
       }
     >
       <form
-        className="safe-x flex flex-col pb-4"
+        className="safe-x flex flex-col gap-3 pb-6 pt-1"
         onSubmit={(e) => {
           e.preventDefault();
           void save();
         }}
       >
-        <div className="flex items-center gap-1 py-2">
+        <div className="flex items-center gap-3 px-1 py-1">
           <div className="min-w-0 flex-1">
-            <p className="m-0 truncate text-headline">{target.title}</p>
-            <p className="m-0 flex items-center gap-1 text-footnote text-label-secondary">
+            <p className="display m-0 truncate text-title3">{target.title}</p>
+            <p className="m-0 flex items-center gap-2 text-footnote text-label-secondary">
               {target.releaseYear && <span>{target.releaseYear}</span>}
               <MediaTypeBadge mediaType={target.mediaType} />
             </p>
@@ -227,43 +227,49 @@ export function LogWatchSheet({ open, onOpenChange, target, mode, onSaved }: Log
           </Banner>
         )}
 
-        <DateField
-          id="watchedOn"
-          label="Date watched"
-          value={form.watchedOn}
-          max={todayLocalDateString()}
-          onChange={(v) => update('watchedOn', v)}
-          error={fieldErrors.watchedOn}
-          required
-        />
-
-        <RatingPicker
-          value={form.rating}
-          onChange={(v) => update('rating', v)}
-          error={fieldErrors.rating}
-          disabled={pending}
-        />
-
-        {target.mediaType === 'tv' && (
-          <SelectField
-            id="season"
-            label="Season"
-            value={form.season}
-            onChange={(v) => update('season', v)}
-            options={seasonOptions}
-            error={fieldErrors.season}
+        <div className="card flex flex-col px-4 py-1">
+          <DateField
+            id="watchedOn"
+            label="Date watched"
+            value={form.watchedOn}
+            max={todayLocalDateString()}
+            onChange={(v) => update('watchedOn', v)}
+            error={fieldErrors.watchedOn}
+            required
           />
-        )}
+        </div>
 
-        <TextArea
-          id="note"
-          label="Note"
-          placeholder="Anything worth remembering?"
-          value={form.note}
-          onChange={(v) => update('note', v)}
-          maxLength={NOTE_MAX_LENGTH}
-          error={fieldErrors.note}
-        />
+        <div className="card flex flex-col px-4 py-1">
+          <RatingPicker
+            value={form.rating}
+            onChange={(v) => update('rating', v)}
+            error={fieldErrors.rating}
+            disabled={pending}
+          />
+        </div>
+
+        <div className="card flex flex-col px-4 py-1">
+          {target.mediaType === 'tv' && (
+            <SelectField
+              id="season"
+              label="Season"
+              value={form.season}
+              onChange={(v) => update('season', v)}
+              options={seasonOptions}
+              error={fieldErrors.season}
+            />
+          )}
+
+          <TextArea
+            id="note"
+            label="Note"
+            placeholder="Anything worth remembering?"
+            value={form.note}
+            onChange={(v) => update('note', v)}
+            maxLength={NOTE_MAX_LENGTH}
+            error={fieldErrors.note}
+          />
+        </div>
 
         <Button
           type="submit"
@@ -272,7 +278,7 @@ export function LogWatchSheet({ open, onOpenChange, target, mode, onSaved }: Log
           block
           loading={pending}
           disabled={!form.watchedOn}
-          className="mt-2"
+          className="pill mt-1"
         >
           {mode.kind === 'create' ? 'Save Watch' : 'Save Changes'}
         </Button>

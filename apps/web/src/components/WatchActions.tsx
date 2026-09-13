@@ -4,7 +4,7 @@ import {
   todayLocalDateString,
   type WatchMutationResponse,
 } from '@seen/shared';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ApiError } from '../lib/api.js';
 import { cn } from '../lib/cn.js';
 import { formatDate } from '../lib/format.js';
@@ -12,7 +12,6 @@ import { useLogWatchMutation, useUpdateWatchMutation } from '../lib/queries.js';
 import { LogWatchSheet, type WatchTarget } from '../screens/LogWatchSheet.js';
 import { Button } from './ui/Button.js';
 import { RatingPicker } from './ui/RatingPicker.js';
-import { Sheet } from './ui/Sheet.js';
 
 export interface WatchActionsProps {
   target: WatchTarget;
@@ -29,8 +28,10 @@ export interface WatchActionsProps {
  */
 export function WatchActions({ target, detail, loading = false, onCreated }: WatchActionsProps) {
   const logWatch = useLogWatchMutation();
+  const updateWatch = useUpdateWatchMutation();
   const [logOpen, setLogOpen] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
   const entries = detail?.entries ?? [];
   const latest = entries[0];
   const watched = entries.length > 0;
@@ -51,15 +52,30 @@ export function WatchActions({ target, detail, loading = false, onCreated }: Wat
     }
   };
 
+  /** Inline rating: saves on tap, then folds the strip away. */
+  const rate = async (rating: number | null) => {
+    if (!latest) return;
+    try {
+      await updateWatch.mutateAsync({ id: latest.id, body: { rating } });
+      setSavedFlash(true);
+      setTimeout(() => {
+        setSavedFlash(false);
+        setRateOpen(false);
+      }, 450);
+    } catch {
+      // Error surfaced below.
+    }
+  };
+
+  const error = logWatch.error ?? updateWatch.error;
   const errorMessage =
-    logWatch.error instanceof ApiError
-      ? logWatch.error.isOffline
+    error instanceof ApiError
+      ? error.isOffline
         ? "You're offline. Nothing was saved."
-        : logWatch.error.message
-      : logWatch.error
+        : error.message
+      : error
         ? 'Could not save. Please try again.'
         : null;
-
   const ratedLabel = detail?.rating != null ? `${detail.rating}/10` : null;
 
   return (
@@ -103,7 +119,7 @@ export function WatchActions({ target, detail, loading = false, onCreated }: Wat
             <Button
               variant="glass"
               size="large"
-              className="pill"
+              className={cn('pill', rateOpen && 'ring-2 ring-tint/40')}
               icon={
                 <Star
                   weight="fill"
@@ -111,7 +127,9 @@ export function WatchActions({ target, detail, loading = false, onCreated }: Wat
                   aria-hidden="true"
                 />
               }
-              onClick={() => setRateOpen(true)}
+              onClick={() => setRateOpen((o) => !o)}
+              aria-expanded={rateOpen}
+              aria-controls="inline-rating"
               aria-label={
                 ratedLabel ? `Your rating ${detail?.rating} out of 10. Change rating` : 'Rate'
               }
@@ -121,6 +139,26 @@ export function WatchActions({ target, detail, loading = false, onCreated }: Wat
           </>
         )}
       </div>
+
+      {watched && (
+        <div id="inline-rating" className="disclosure w-full max-w-md" data-open={rateOpen}>
+          <div>
+            <div className="glass mt-1 flex flex-col items-center gap-1 rounded-[1.25rem] px-3 py-3 shadow-none">
+              <RatingPicker
+                compact
+                label="Your rating"
+                value={detail?.rating ?? null}
+                onChange={(v) => void rate(v)}
+                disabled={updateWatch.isPending}
+              />
+              <span className="text-caption1 text-label-tertiary" aria-live="polite">
+                {updateWatch.isPending ? 'Saving…' : savedFlash ? 'Saved' : 'Tap a number to rate'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {watched && (
         <p className="m-0 text-footnote text-label-secondary">
           {latest ? `Watched ${formatDate(latest.watchedOn)}` : 'Watched'}
@@ -148,89 +186,6 @@ export function WatchActions({ target, detail, loading = false, onCreated }: Wat
         target={target}
         onSaved={onCreated}
       />
-      {latest && (
-        <RateSheet
-          open={rateOpen}
-          onOpenChange={setRateOpen}
-          entryId={latest.id}
-          initial={latest.rating}
-          title={target.title}
-        />
-      )}
     </section>
-  );
-}
-
-/** Minimal sheet to set or change the rating on the most recent watch entry. */
-export function RateSheet({
-  open,
-  onOpenChange,
-  entryId,
-  initial,
-  title,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  entryId: string;
-  initial: number | null;
-  title: string;
-}) {
-  const update = useUpdateWatchMutation();
-  const [value, setValue] = useState<number | null>(initial);
-  useEffect(() => {
-    if (open) setValue(initial);
-  }, [open, initial]);
-
-  const save = async () => {
-    try {
-      await update.mutateAsync({ id: entryId, body: { rating: value } });
-      onOpenChange(false);
-    } catch {
-      // Error shown inline.
-    }
-  };
-
-  return (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Rate"
-      dirty={value !== initial && !update.isPending}
-      trailing={
-        <Button
-          variant="plain"
-          className="-mr-2 font-semibold"
-          onClick={() => void save()}
-          loading={update.isPending}
-        >
-          Save
-        </Button>
-      }
-    >
-      <div className="safe-x flex flex-col gap-2 pb-6 pt-2">
-        <p className="m-0 truncate text-headline">{title}</p>
-        <RatingPicker
-          value={value}
-          onChange={setValue}
-          disabled={update.isPending}
-          label="Your rating"
-        />
-        {update.isError && (
-          <p role="alert" className="m-0 text-footnote text-destructive">
-            {update.error instanceof ApiError ? update.error.message : 'Could not save the rating.'}
-          </p>
-        )}
-        <Button
-          variant="filled"
-          size="large"
-          block
-          onClick={() => void save()}
-          loading={update.isPending}
-          className="mt-2"
-        >
-          Save Rating
-        </Button>
-      </div>
-    </Sheet>
   );
 }

@@ -31,7 +31,7 @@ export function FieldShell({ label, htmlFor, error, hint, children }: FieldShell
 }
 
 const fieldClass =
-  'min-h-[3rem] w-full rounded-xl border border-card-border bg-bg-grouped-secondary px-3 text-body text-label shadow-[var(--shadow-card)] placeholder:text-label-tertiary focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-tint/50 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-destructive/60';
+  'min-h-[3rem] w-full rounded-xl border border-glass-border bg-fill px-3 text-body text-label placeholder:text-label-tertiary focus:outline-none focus-visible:outline-none focus:ring-2 focus:ring-tint/50 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-destructive/60';
 
 export interface DateFieldProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange'> {

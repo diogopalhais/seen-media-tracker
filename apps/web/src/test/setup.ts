@@ -7,7 +7,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// jsdom lacks a few browser APIs that Radix, vaul and our observers rely on.
+// jsdom lacks a few browser APIs that Radix and our observers rely on.
 if (!window.matchMedia) {
   window.matchMedia = ((query: string) => ({
     matches: false,

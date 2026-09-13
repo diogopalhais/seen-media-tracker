@@ -8,8 +8,8 @@ Opening a search or discover result SHALL show the title's details (backdrop or 
 - **THEN** a watch dated today with no rating is created and the screen shows "Watched" with today's date and a "Rate" action
 
 #### Scenario: Rate after watching
-- **WHEN** the owner taps "Rate" and picks 8
-- **THEN** the most recent entry is updated and the 8/10 badge replaces the Rate action
+- **WHEN** the owner taps "Rate" and picks 8 in the inline strip
+- **THEN** the most recent entry is updated immediately and the 8/10 pill replaces the Rate action
 
 #### Scenario: Log with details
 - **WHEN** the owner taps "Log with details"

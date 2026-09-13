@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Web library item detail screen
-The item detail screen SHALL show the backdrop or poster, title, year, media type, genres, runtime or season count, the people's rating, and overview. It SHALL lead with a watched status block: when the item has at least one watch entry it reads "Watched" with the most recent date (and the number of times when more than one), shows the owner's rating badge when rated or a "Rate" action otherwise, and offers a low-emphasis "Log another watch" action; when it has no watch entry (a series tracked only by episodes) it SHALL offer a primary "Mark as Watched" action. The watch history list SHALL follow, where each entry shows date watched, season (if any), rating and note, with per-entry Edit and Delete actions (Delete confirmed with a destructive style), returning to the Library after deleting the last activity. A link to the title on TMDB SHALL open outside the app.
+The item detail screen SHALL show the backdrop or poster, title, year, media type, genres, runtime or season count, the people's rating, and overview. It SHALL lead with a watched status block: when the item has at least one watch entry it reads "Watched" with the most recent date (and the number of times when more than one), shows the owner's rating when rated or a "Rate" action otherwise, and the rating is set inline (a strip of ten numbers that saves on tap) rather than in a modal, and offers a low-emphasis "Log another watch" action; when it has no watch entry (a series tracked only by episodes) it SHALL offer a primary "Mark as Watched" action. The watch history list SHALL follow, where each entry shows date watched, season (if any), rating and note, with per-entry Edit and Delete actions (Delete confirmed with a destructive style), returning to the Library after deleting the last activity. A link to the title on TMDB SHALL open outside the app.
 
 #### Scenario: Watched status with rating
 - **WHEN** the owner opens an item with two entries, the latest rated 7
@@ -9,7 +9,7 @@ The item detail screen SHALL show the backdrop or poster, title, year, media typ
 
 #### Scenario: Watched but unrated offers Rate
 - **WHEN** the latest entries carry no rating
-- **THEN** the status shows a "Rate" action which opens a rating sheet and saving stores the rating on the most recent entry
+- **THEN** the status shows a "Rate" action which reveals an inline strip of ten numbers; tapping one stores the rating on the most recent entry immediately and the strip folds away
 
 #### Scenario: Log another watch is secondary
 - **WHEN** the owner wants to record a rewatch with a date or note

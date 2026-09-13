@@ -408,6 +408,59 @@
     transform: translateX(0);
   }
 }
+/* Bottom sheet: transform/opacity only, GPU friendly. Exit animations run via data-state. */
+.sheet-overlay[data-state="open"] {
+  animation: fade-in 260ms var(--ease-ios) both;
+}
+.sheet-overlay[data-state="closed"] {
+  animation: fade-out 220ms var(--ease-ios) both;
+}
+.sheet-panel[data-state="open"] {
+  animation: sheet-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sheet-panel[data-state="closed"] {
+  animation: sheet-out 240ms var(--ease-ios) both;
+}
+.sheet-panel {
+  will-change: transform;
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes sheet-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+/* Inline disclosure (e.g. the rating strip): animate grid rows instead of height. */
+.disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms var(--ease-ios);
+}
+.disclosure[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.disclosure > * {
+  overflow: hidden;
+  min-height: 0;
+}
 @keyframes reveal-up {
   from {
     opacity: 0;
@@ -441,10 +494,6 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
-  }
-  [data-vaul-drawer],
-  [data-vaul-overlay] {
-    transition: none !important;
   }
 }
 

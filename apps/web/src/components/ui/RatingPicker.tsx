@@ -8,6 +8,8 @@ export interface RatingPickerProps {
   label?: string;
   error?: string | undefined;
   disabled?: boolean;
+  /** Hide the label row (inline strips). */
+  compact?: boolean;
 }
 
 const VALUES = Array.from({ length: RATING_MAX - RATING_MIN + 1 }, (_, i) => RATING_MIN + i);
@@ -23,6 +25,7 @@ export function RatingPicker({
   label = 'Rating',
   error,
   disabled,
+  compact = false,
 }: RatingPickerProps) {
   const id = useId();
   const groupRef = useRef<HTMLDivElement>(null);
@@ -65,8 +68,8 @@ export function RatingPicker({
   const tabbable = value ?? focusIndex ?? RATING_MIN;
 
   return (
-    <div className="flex flex-col gap-0.5 py-1.5">
-      <div className="flex items-baseline justify-between">
+    <div className="flex flex-col gap-1 py-1.5">
+      <div className={cn('flex items-baseline justify-between', compact && 'visually-hidden')}>
         <span
           id={`${id}-label`}
           className="text-footnote font-semibold uppercase tracking-[0.05em] text-label-secondary"
@@ -100,7 +103,7 @@ export function RatingPicker({
           role="radiogroup"
           aria-labelledby={`${id}-label`}
           aria-describedby={error ? `${id}-error` : undefined}
-          className="grid flex-1 grid-cols-5 gap-1 min-[400px]:grid-cols-10"
+          className="flex flex-1 flex-wrap gap-2"
         >
           {VALUES.map((v) => {
             const checked = value === v;
