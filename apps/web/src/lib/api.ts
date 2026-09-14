@@ -11,6 +11,8 @@ import {
   LibraryItemDetailSchema,
   type LibraryListResponse,
   LibraryListResponseSchema,
+  type LibraryReleasesResponse,
+  LibraryReleasesResponseSchema,
   type LibrarySort,
   type LoginResponse,
   LoginResponseSchema,
@@ -179,6 +181,10 @@ export const api = {
     ),
   libraryItem: (id: string) =>
     request<LibraryItemDetail>(`/api/v1/library/${id}`, { schema: LibraryItemDetailSchema }),
+  libraryReleases: () =>
+    request<LibraryReleasesResponse>('/api/v1/library/releases', {
+      schema: LibraryReleasesResponseSchema,
+    }),
 
   logWatch: (body: LogWatchRequest) =>
     request<WatchMutationResponse>('/api/v1/watches', {

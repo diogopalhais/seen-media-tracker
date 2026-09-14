@@ -1,9 +1,15 @@
-import { LibraryListQuerySchema, type LibraryListResponse } from '@seen/shared';
+import {
+  LibraryListQuerySchema,
+  type LibraryListResponse,
+  type LibraryReleasesResponse,
+  latestTodayOnEarth,
+} from '@seen/shared';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 import { ApiError } from '../errors.js';
 import type { LibraryRepository } from '../services/library.js';
 import { detailsFor, type MetadataProvider } from '../services/metadata/provider.js';
+import type { SnapshotRefresher } from '../services/refresh.js';
 import type { AppEnv } from '../types.js';
 import { validate } from '../validate.js';
 
@@ -12,6 +18,7 @@ export interface LibraryDeps {
   provider: MetadataProvider;
   requireAuth: MiddlewareHandler<AppEnv>;
   now: () => Date;
+  refresher: SnapshotRefresher;
 }
 
 const IdParam = z.object({ id: z.string().min(1) });
@@ -20,7 +27,21 @@ export function libraryRoutes(deps: LibraryDeps): Hono<AppEnv> {
   const router = new Hono<AppEnv>();
 
   router.get('/library', deps.requireAuth, validate('query', LibraryListQuerySchema), async (c) => {
-    const body: LibraryListResponse = await deps.library.list(c.req.valid('query'));
+    const query = c.req.valid('query');
+    // Only the first page pays for the refresh; later pages of the same scroll should be quick.
+    if (!query.cursor) await deps.refresher.refreshStale();
+    const body: LibraryListResponse = await deps.library.list(
+      query,
+      latestTodayOnEarth(deps.now()),
+    );
+    return c.json(body, 200);
+  });
+
+  router.get('/library/releases', deps.requireAuth, async (c) => {
+    await deps.refresher.refreshStale();
+    const body: LibraryReleasesResponse = {
+      items: await deps.library.listReleases(latestTodayOnEarth(deps.now())),
+    };
     return c.json(body, 200);
   });
 

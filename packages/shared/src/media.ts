@@ -41,6 +41,42 @@ export const SeasonSchema = z.object({
 });
 export type Season = z.infer<typeof SeasonSchema>;
 
+/** A person credited on a title. `role` is the character for cast and the job for crew. */
+export const PersonCreditSchema = z.object({
+  tmdbId: z.number().int(),
+  name: z.string(),
+  role: z.string(),
+  profileUrl: z.url().nullable(),
+  tmdbUrl: z.url(),
+});
+export type PersonCredit = z.infer<typeof PersonCreditSchema>;
+
+/** A network or production company. Logos are provided but not shown yet (often dark on dark). */
+export const CompanySchema = z.object({
+  tmdbId: z.number().int(),
+  name: z.string(),
+  logoUrl: z.url().nullable(),
+});
+export type Company = z.infer<typeof CompanySchema>;
+
+/** One episode as reported by the provider: the last or the next to air. */
+export const AiredEpisodeSchema = z.object({
+  seasonNumber: z.number().int().min(0),
+  episodeNumber: z.number().int().min(0),
+  name: z.string(),
+  airDate: z.string().nullable(),
+});
+export type AiredEpisode = z.infer<typeof AiredEpisodeSchema>;
+
+/** Provider status label, kept verbatim: "Returning Series", "Ended", "Canceled", "In Production", "Released", ... */
+export const TitleStatusSchema = z.string();
+export const ENDED_STATUSES: readonly string[] = ['Ended', 'Canceled'];
+
+/** A series is treated as ongoing (worth refreshing) unless the provider says it ended or was canceled. */
+export function isOngoingSeries(status: string | null | undefined): boolean {
+  return status == null || !ENDED_STATUSES.includes(status);
+}
+
 export const IsoTimestampSchema = z.iso.datetime({ offset: false });
 
 /** Snapshot of a title's metadata as stored in the library. */
@@ -60,6 +96,10 @@ export const MediaItemSchema = z.object({
   numberOfSeasons: z.number().int().nullable(),
   tmdbRating: TmdbRatingSchema,
   tmdbUrl: z.url(),
+  status: TitleStatusSchema.nullable(),
+  /** Series only; null for movies or when unknown. */
+  lastEpisodeToAir: AiredEpisodeSchema.nullable(),
+  nextEpisodeToAir: AiredEpisodeSchema.nullable(),
   createdAt: IsoTimestampSchema,
   updatedAt: IsoTimestampSchema,
 });
@@ -91,6 +131,16 @@ export const TitleDetailsSchema = z
     seasons: z.array(SeasonSchema).nullable(),
     tmdbRating: TmdbRatingSchema,
     tmdbUrl: z.url(),
+    status: TitleStatusSchema.nullable(),
+    lastEpisodeToAir: AiredEpisodeSchema.nullable(),
+    nextEpisodeToAir: AiredEpisodeSchema.nullable(),
+    /** Top billed cast in provider order, at most 15. */
+    cast: z.array(PersonCreditSchema),
+    /** Directors and writers for movies; creators for series. */
+    crew: z.array(PersonCreditSchema),
+    /** Series only (empty for movies). */
+    networks: z.array(CompanySchema),
+    productionCompanies: z.array(CompanySchema),
     /** Displayed rating when the title is already in the library. */
     rating: z.number().int().nullable(),
   })

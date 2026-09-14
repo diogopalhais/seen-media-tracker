@@ -9,7 +9,10 @@ import {
   type TitleDetails,
   TitleParamsSchema,
   tmdbBackdropUrl,
+  tmdbLogoUrl,
+  tmdbPersonUrl,
   tmdbPosterUrl,
+  tmdbProfileUrl,
   tmdbStillUrl,
   tmdbTitleUrl,
   toTmdbRating,
@@ -20,7 +23,9 @@ import { type LibraryRepository, membershipKey } from '../services/library.js';
 import {
   detailsFor,
   type MetadataProvider,
+  type ProviderCompany,
   ProviderError,
+  type ProviderPerson,
   type ProviderSearchPage,
   type ProviderSearchResult,
   releaseYear,
@@ -41,6 +46,20 @@ export function mapProviderError(err: unknown): never {
   }
   throw err;
 }
+
+const toPerson = (p: ProviderPerson) => ({
+  tmdbId: p.tmdbId,
+  name: p.name,
+  role: p.role,
+  profileUrl: tmdbProfileUrl(p.profilePath),
+  tmdbUrl: tmdbPersonUrl(p.tmdbId),
+});
+
+const toCompany = (c: ProviderCompany) => ({
+  tmdbId: c.tmdbId,
+  name: c.name,
+  logoUrl: tmdbLogoUrl(c.logoPath),
+});
 
 const byPopularity = (a: ProviderSearchResult, b: ProviderSearchResult) =>
   b.popularity - a.popularity;
@@ -209,6 +228,13 @@ export function searchRoutes(deps: SearchDeps): Hono<AppEnv> {
         seasons: details.seasons,
         tmdbRating: toTmdbRating(details.voteAverage, details.voteCount),
         tmdbUrl: tmdbTitleUrl(mediaType, tmdbId),
+        status: details.status,
+        lastEpisodeToAir: details.lastEpisodeToAir,
+        nextEpisodeToAir: details.nextEpisodeToAir,
+        cast: details.cast.map(toPerson),
+        crew: details.crew.map(toPerson),
+        networks: details.networks.map(toCompany),
+        productionCompanies: details.productionCompanies.map(toCompany),
         rating: membership.rating,
         inLibrary: membership.inLibrary,
         libraryItemId: membership.libraryItemId,

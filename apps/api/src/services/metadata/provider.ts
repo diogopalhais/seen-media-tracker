@@ -19,6 +19,27 @@ export interface ProviderSearchPage {
   totalPages: number;
 }
 
+export interface ProviderPerson {
+  tmdbId: number;
+  name: string;
+  /** Character for cast, job for crew. */
+  role: string;
+  profilePath: string | null;
+}
+
+export interface ProviderCompany {
+  tmdbId: number;
+  name: string;
+  logoPath: string | null;
+}
+
+export interface ProviderEpisodeRef {
+  seasonNumber: number;
+  episodeNumber: number;
+  name: string;
+  airDate: string | null;
+}
+
 export interface ProviderTitleDetails {
   mediaType: MediaType;
   tmdbId: number;
@@ -34,6 +55,14 @@ export interface ProviderTitleDetails {
   seasons: Season[] | null;
   voteAverage: number | null;
   voteCount: number;
+  /** Provider status label verbatim ("Returning Series", "Ended", "Released", ...). */
+  status: string | null;
+  lastEpisodeToAir: ProviderEpisodeRef | null;
+  nextEpisodeToAir: ProviderEpisodeRef | null;
+  cast: ProviderPerson[];
+  crew: ProviderPerson[];
+  networks: ProviderCompany[];
+  productionCompanies: ProviderCompany[];
 }
 
 export interface ProviderEpisode {

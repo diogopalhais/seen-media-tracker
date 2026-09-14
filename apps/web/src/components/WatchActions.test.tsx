@@ -28,6 +28,9 @@ const item = {
   numberOfSeasons: null,
   tmdbRating: { average: 8.4, count: 100 },
   tmdbUrl: 'https://www.themoviedb.org/movie/550',
+  status: 'Released',
+  lastEpisodeToAir: null,
+  nextEpisodeToAir: null,
   createdAt: '2026-09-01T00:00:00.000Z',
   updatedAt: '2026-09-01T00:00:00.000Z',
 };

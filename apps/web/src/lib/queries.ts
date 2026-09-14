@@ -15,6 +15,8 @@ export const queryKeys = {
   session: ['session'] as const,
   library: (filters: { type: MediaTypeFilter; sort: LibrarySort }) => ['library', filters] as const,
   libraryAll: ['library'] as const,
+  // Shares the 'library' prefix so watch mutations invalidate it along with the list.
+  libraryReleases: ['library', 'releases'] as const,
   libraryItem: (id: string) => ['library-item', id] as const,
   search: (q: string, type: MediaTypeFilter) => ['search', q, type] as const,
   searchAll: ['search'] as const,
@@ -41,6 +43,14 @@ export function useLibraryQuery(filters: { type: MediaTypeFilter; sort: LibraryS
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     staleTime: 30_000,
+  });
+}
+
+export function useLibraryReleasesQuery() {
+  return useQuery({
+    queryKey: queryKeys.libraryReleases,
+    queryFn: api.libraryReleases,
+    staleTime: 60_000,
   });
 }
 

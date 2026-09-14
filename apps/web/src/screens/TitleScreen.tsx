@@ -1,8 +1,10 @@
 import { ArrowSquareOut, SmileyMeh } from '@phosphor-icons/react';
 import { MediaTypeSchema } from '@seen/shared';
 import { useLocation, useNavigate, useParams } from 'react-router';
+import { CastRow } from '../components/CastRow.js';
 import { ContinueWatchingCard } from '../components/Progress.js';
 import { SeasonsList } from '../components/SeasonsList.js';
+import { TitleDetailsList } from '../components/TitleDetailsList.js';
 import { TitleHero } from '../components/TitleHero.js';
 import { Button } from '../components/ui/Button.js';
 import { InsetGroupedList, Row } from '../components/ui/InsetGroupedList.js';
@@ -113,6 +115,18 @@ export function TitleScreen() {
           <SeasonsList seasons={t.seasons} basePath={`${base}/tv/${t.tmdbId}`} />
         </>
       )}
+
+      <CastRow cast={t.cast} />
+      <TitleDetailsList
+        mediaType={t.mediaType}
+        status={t.status}
+        lastEpisodeToAir={t.lastEpisodeToAir}
+        nextEpisodeToAir={t.nextEpisodeToAir}
+        networks={t.networks}
+        productionCompanies={t.productionCompanies}
+        crew={t.crew}
+        releaseDate={t.releaseDate}
+      />
 
       <InsetGroupedList className="mt-3">
         {t.inLibrary && t.libraryItemId && (

@@ -1,4 +1,5 @@
 import {
+  type AiredEpisode,
   type EpisodeWatch,
   type LibraryItemDetail,
   type LibraryItemSummary,
@@ -7,6 +8,10 @@ import {
   type MediaItem,
   type MediaType,
   type PublicRecentItem,
+  RELEASE_NEW_WINDOW_DAYS,
+  RELEASE_UPCOMING_WINDOW_DAYS,
+  RELEASES_LIMIT,
+  type ReleaseAlert,
   tmdbBackdropUrl,
   tmdbPosterUrl,
   tmdbTitleUrl,
@@ -14,7 +19,19 @@ import {
   type UpdateWatchRequest,
   type WatchEntry,
 } from '@seen/shared';
-import { and, asc, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  lt,
+  notInArray,
+  or,
+  type SQL,
+  sql,
+} from 'drizzle-orm';
 import type { Db } from '../db/client.js';
 import {
   type EpisodeWatchRow,
@@ -28,6 +45,16 @@ import { type ProviderTitleDetails, releaseYear } from './metadata/provider.js';
 
 export function membershipKey(mediaType: MediaType, tmdbId: number): string {
   return `${mediaType}:${tmdbId}`;
+}
+
+function episodeRef(
+  season: number | null,
+  episode: number | null,
+  name: string | null,
+  airDate: string | null,
+): AiredEpisode | null {
+  if (season === null || episode === null) return null;
+  return { seasonNumber: season, episodeNumber: episode, name: name ?? '', airDate };
 }
 
 export function toMediaItem(row: MediaItemRow): MediaItem {
@@ -47,6 +74,19 @@ export function toMediaItem(row: MediaItemRow): MediaItem {
     numberOfSeasons: row.numberOfSeasons,
     tmdbRating: toTmdbRating(row.tmdbVoteAverage, row.tmdbVoteCount),
     tmdbUrl: tmdbTitleUrl(row.mediaType, row.tmdbId),
+    status: row.status,
+    lastEpisodeToAir: episodeRef(
+      row.lastEpisodeSeason,
+      row.lastEpisodeNumber,
+      row.lastEpisodeName,
+      row.lastEpisodeAirDate,
+    ),
+    nextEpisodeToAir: episodeRef(
+      row.nextEpisodeSeason,
+      row.nextEpisodeNumber,
+      row.nextEpisodeName,
+      row.nextEpisodeAirDate,
+    ),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -105,6 +145,30 @@ const hasActivity = () => sql`(
 const lastSeason = () => sql<number | null>`(
   select w.season from ${watchEntries} w where w.media_item_id = ${itemId}
   order by w.watched_on desc, w.created_at desc limit 1)`;
+
+/**
+ * The last aired episode counts as new when it aired within the window, on or before today, and the
+ * owner neither ticked it nor logged that season (or the whole series) on or after its air date.
+ */
+const hasNewEpisode = (today: string) => sql<boolean>`(
+  ${mediaItems.lastEpisodeAirDate} is not null
+  and ${mediaItems.lastEpisodeAirDate} <= ${today}::date
+  and ${mediaItems.lastEpisodeAirDate} >= (${today}::date - ${RELEASE_NEW_WINDOW_DAYS}::int)
+  and not exists (
+    select 1 from ${episodeWatches} ew
+    where ew.media_item_id = ${itemId}
+      and ew.season_number = ${mediaItems.lastEpisodeSeason}
+      and ew.episode_number = ${mediaItems.lastEpisodeNumber})
+  and not exists (
+    select 1 from ${watchEntries} w
+    where w.media_item_id = ${itemId}
+      and (w.season is null or w.season = ${mediaItems.lastEpisodeSeason})
+      and w.watched_on >= ${mediaItems.lastEpisodeAirDate}))`;
+
+const hasUpcomingEpisode = (today: string) => sql<boolean>`(
+  ${mediaItems.nextEpisodeAirDate} is not null
+  and ${mediaItems.nextEpisodeAirDate} >= ${today}::date
+  and ${mediaItems.nextEpisodeAirDate} <= (${today}::date + ${RELEASE_UPCOMING_WINDOW_DAYS}::int))`;
 
 const entryOrder = [desc(watchEntries.watchedOn), desc(watchEntries.createdAt)];
 
@@ -203,6 +267,16 @@ export class LibraryRepository {
       numberOfSeasons: details.numberOfSeasons,
       tmdbVoteAverage: details.voteAverage,
       tmdbVoteCount: details.voteCount,
+      status: details.status,
+      lastEpisodeSeason: details.lastEpisodeToAir?.seasonNumber ?? null,
+      lastEpisodeNumber: details.lastEpisodeToAir?.episodeNumber ?? null,
+      lastEpisodeName: details.lastEpisodeToAir?.name ?? null,
+      lastEpisodeAirDate: details.lastEpisodeToAir?.airDate ?? null,
+      nextEpisodeSeason: details.nextEpisodeToAir?.seasonNumber ?? null,
+      nextEpisodeNumber: details.nextEpisodeToAir?.episodeNumber ?? null,
+      nextEpisodeName: details.nextEpisodeToAir?.name ?? null,
+      nextEpisodeAirDate: details.nextEpisodeToAir?.airDate ?? null,
+      metadataRefreshedAt: now,
       createdAt: now,
       updatedAt: now,
     };
@@ -224,6 +298,16 @@ export class LibraryRepository {
           numberOfSeasons: values.numberOfSeasons,
           tmdbVoteAverage: values.tmdbVoteAverage,
           tmdbVoteCount: values.tmdbVoteCount,
+          status: values.status,
+          lastEpisodeSeason: values.lastEpisodeSeason,
+          lastEpisodeNumber: values.lastEpisodeNumber,
+          lastEpisodeName: values.lastEpisodeName,
+          lastEpisodeAirDate: values.lastEpisodeAirDate,
+          nextEpisodeSeason: values.nextEpisodeSeason,
+          nextEpisodeNumber: values.nextEpisodeNumber,
+          nextEpisodeName: values.nextEpisodeName,
+          nextEpisodeAirDate: values.nextEpisodeAirDate,
+          metadataRefreshedAt: now,
           updatedAt: now,
         },
       })
@@ -402,26 +486,14 @@ export class LibraryRepository {
     };
   }
 
-  async list(
-    query: LibraryListQuery,
-  ): Promise<{ items: LibraryItemSummary[]; nextCursor: string | null }> {
-    const offset = decodeCursor(query.cursor);
-    const rating = displayedRating();
-    const last = lastWatchedOn();
-    const count = watchCount();
-    const season = lastSeason();
-
-    const episodes = episodesWatched();
-    const conditions: SQL[] = [hasActivity()];
-    if (query.type !== 'all') conditions.push(eq(mediaItems.mediaType, query.type));
-
-    const order: SQL[] =
-      query.sort === 'title'
-        ? [asc(sql`lower(${mediaItems.title})`), asc(mediaItems.id)]
-        : query.sort === 'rating'
-          ? [sql`${rating} desc nulls last`, sql`${last} desc`, desc(mediaItems.id)]
-          : [sql`${last} desc`, desc(mediaItems.createdAt), desc(mediaItems.id)];
-
+  /** Shared select for library summaries: snapshot columns plus the correlated activity and alert columns. */
+  private async summaries(
+    today: string,
+    conditions: SQL[],
+    order: SQL[],
+    limit: number,
+    offset: number,
+  ): Promise<LibraryItemSummary[]> {
     const rows = await this.db
       .select({
         id: mediaItems.id,
@@ -432,21 +504,47 @@ export class LibraryRepository {
         posterPath: mediaItems.posterPath,
         tmdbVoteAverage: mediaItems.tmdbVoteAverage,
         tmdbVoteCount: mediaItems.tmdbVoteCount,
-        rating,
-        lastWatchedOn: last,
-        watchCount: count,
-        episodesWatched: episodes,
-        lastSeason: season,
+        rating: displayedRating(),
+        lastWatchedOn: lastWatchedOn(),
+        watchCount: watchCount(),
+        episodesWatched: episodesWatched(),
+        lastSeason: lastSeason(),
+        newEpisode: hasNewEpisode(today),
+        upcoming: hasUpcomingEpisode(today),
+        lastEpisodeSeason: mediaItems.lastEpisodeSeason,
+        lastEpisodeNumber: mediaItems.lastEpisodeNumber,
+        lastEpisodeName: mediaItems.lastEpisodeName,
+        lastEpisodeAirDate: mediaItems.lastEpisodeAirDate,
+        nextEpisodeSeason: mediaItems.nextEpisodeSeason,
+        nextEpisodeNumber: mediaItems.nextEpisodeNumber,
+        nextEpisodeName: mediaItems.nextEpisodeName,
+        nextEpisodeAirDate: mediaItems.nextEpisodeAirDate,
       })
       .from(mediaItems)
       .where(and(...conditions))
       .orderBy(...order)
-      .limit(query.limit + 1)
+      .limit(limit)
       .offset(offset);
 
-    const page = rows.slice(0, query.limit);
-    return {
-      items: page.map((r) => ({
+    return rows.map((r) => {
+      const last = episodeRef(
+        r.lastEpisodeSeason,
+        r.lastEpisodeNumber,
+        r.lastEpisodeName,
+        r.lastEpisodeAirDate,
+      );
+      const next = episodeRef(
+        r.nextEpisodeSeason,
+        r.nextEpisodeNumber,
+        r.nextEpisodeName,
+        r.nextEpisodeAirDate,
+      );
+      let release: ReleaseAlert | null = null;
+      if (r.mediaType === 'tv') {
+        if (r.newEpisode && last) release = { kind: 'new_episode', episode: last };
+        else if (r.upcoming && next) release = { kind: 'upcoming', episode: next };
+      }
+      return {
         id: r.id,
         mediaType: r.mediaType,
         tmdbId: r.tmdbId,
@@ -459,9 +557,69 @@ export class LibraryRepository {
         watchCount: r.watchCount,
         episodesWatched: r.episodesWatched,
         lastSeason: r.lastSeason,
-      })),
+        release,
+      };
+    });
+  }
+
+  async list(
+    query: LibraryListQuery,
+    today: string,
+  ): Promise<{ items: LibraryItemSummary[]; nextCursor: string | null }> {
+    const offset = decodeCursor(query.cursor);
+    const rating = displayedRating();
+    const last = lastWatchedOn();
+
+    const conditions: SQL[] = [hasActivity()];
+    if (query.type !== 'all') conditions.push(eq(mediaItems.mediaType, query.type));
+
+    const order: SQL[] =
+      query.sort === 'title'
+        ? [asc(sql`lower(${mediaItems.title})`), asc(mediaItems.id)]
+        : query.sort === 'rating'
+          ? [sql`${rating} desc nulls last`, sql`${last} desc`, desc(mediaItems.id)]
+          : [sql`${last} desc`, desc(mediaItems.createdAt), desc(mediaItems.id)];
+
+    const rows = await this.summaries(today, conditions, order, query.limit + 1, offset);
+    return {
+      items: rows.slice(0, query.limit),
       nextCursor: rows.length > query.limit ? encodeCursor(offset + query.limit) : null,
     };
+  }
+
+  /** Series with a release alert: new episodes (newest aired first), then upcoming (soonest first). */
+  async listReleases(today: string): Promise<LibraryItemSummary[]> {
+    const fresh = hasNewEpisode(today);
+    const soon = hasUpcomingEpisode(today);
+    return this.summaries(
+      today,
+      [hasActivity(), eq(mediaItems.mediaType, 'tv'), sql`(${fresh} or ${soon})`],
+      [
+        sql`case when ${fresh} then 0 else 1 end`,
+        sql`case when ${fresh} then ${mediaItems.lastEpisodeAirDate} end desc nulls last`,
+        sql`${mediaItems.nextEpisodeAirDate} asc nulls last`,
+        desc(mediaItems.id),
+      ],
+      RELEASES_LIMIT,
+      0,
+    );
+  }
+
+  /** Running series in the library whose snapshot has not been refreshed since `before`. */
+  async staleShows(before: Date, limit: number): Promise<MediaItemRow[]> {
+    return this.db
+      .select()
+      .from(mediaItems)
+      .where(
+        and(
+          hasActivity(),
+          eq(mediaItems.mediaType, 'tv'),
+          or(isNull(mediaItems.status), notInArray(mediaItems.status, ['Ended', 'Canceled'])),
+          or(isNull(mediaItems.metadataRefreshedAt), lt(mediaItems.metadataRefreshedAt, before)),
+        ),
+      )
+      .orderBy(sql`${mediaItems.metadataRefreshedAt} asc nulls first`)
+      .limit(limit);
   }
 
   /** One row per title, described by its most recent event (log or episode watch), newest first. */

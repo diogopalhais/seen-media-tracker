@@ -7,6 +7,7 @@ import {
   isDefaultFilters,
   type LibraryFilters,
 } from '../components/FilterSheet.js';
+import { ReleaseBadge, ReleasesShelf } from '../components/ReleasesShelf.js';
 import { Banner } from '../components/ui/Banner.js';
 import { Button, Spinner } from '../components/ui/Button.js';
 import { EmptyState, Poster } from '../components/ui/Media.js';
@@ -14,7 +15,7 @@ import { MediaCardText } from '../components/ui/MediaCardText.js';
 import { IconCircleButton, Screen } from '../components/ui/NavBar.js';
 import { PosterGridSkeleton } from '../components/ui/Skeleton.js';
 import { ApiError } from '../lib/api.js';
-import { useLibraryQuery } from '../lib/queries.js';
+import { useLibraryQuery, useLibraryReleasesQuery } from '../lib/queries.js';
 
 // Persisted for as long as the app stays open, across navigation into and out of items.
 let savedFilters: LibraryFilters = DEFAULT_FILTERS;
@@ -24,6 +25,7 @@ export function LibraryScreen() {
   const [filterOpen, setFilterOpen] = useState(false);
   const navigate = useNavigate();
   const query = useLibraryQuery(filters);
+  const releases = useLibraryReleasesQuery();
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,6 +81,8 @@ export function LibraryScreen() {
           {errorMessage}
         </Banner>
       )}
+
+      {!active && releases.data && <ReleasesShelf items={releases.data.items} />}
 
       <div className="safe-x pt-1">
         {query.isPending ? (
@@ -139,6 +143,7 @@ export function LibraryScreen() {
                       alt={item.title}
                       className="shadow-[var(--shadow-poster)]"
                     />
+                    {item.release?.kind === 'new_episode' && <ReleaseBadge kind="new_episode" />}
                   </div>
                   <MediaCardText
                     title={item.title}

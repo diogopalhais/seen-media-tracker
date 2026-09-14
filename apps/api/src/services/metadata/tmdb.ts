@@ -1,7 +1,10 @@
 import { z } from 'zod';
 import {
   type MetadataProvider,
+  type ProviderCompany,
+  type ProviderEpisodeRef,
   ProviderError,
+  type ProviderPerson,
   type ProviderSearchPage,
   type ProviderSearchResult,
   type ProviderSeasonDetails,
@@ -89,6 +92,112 @@ const seasonDetailsSchema = z.object({
 
 const genreSchema = z.object({ id: z.number(), name: z.string() });
 
+const companySchema = z.object({
+  id: z.number(),
+  name: z.string().default(''),
+  logo_path: z.string().nullish(),
+});
+
+const episodeRefSchema = z
+  .object({
+    season_number: z.number(),
+    episode_number: z.number(),
+    name: z.string().default(''),
+    air_date: z.string().nullish(),
+  })
+  .nullish();
+
+const movieCreditsSchema = z
+  .object({
+    cast: z
+      .array(
+        z.object({
+          id: z.number(),
+          name: z.string().default(''),
+          character: z.string().nullish(),
+          profile_path: z.string().nullish(),
+          order: z.number().default(9999),
+        }),
+      )
+      .default([]),
+    crew: z
+      .array(
+        z.object({
+          id: z.number(),
+          name: z.string().default(''),
+          job: z.string().nullish(),
+          profile_path: z.string().nullish(),
+        }),
+      )
+      .default([]),
+  })
+  .nullish();
+
+const aggregateCreditsSchema = z
+  .object({
+    cast: z
+      .array(
+        z.object({
+          id: z.number(),
+          name: z.string().default(''),
+          profile_path: z.string().nullish(),
+          order: z.number().default(9999),
+          roles: z.array(z.object({ character: z.string().nullish() })).default([]),
+        }),
+      )
+      .default([]),
+  })
+  .nullish();
+
+export const CAST_LIMIT = 15;
+/** Movie crew jobs worth surfacing, in display order. */
+const MOVIE_CREW_JOBS = ['Director', 'Screenplay', 'Writer', 'Story'];
+const COMPANY_LIMIT = 5;
+
+function toCompany(c: z.infer<typeof companySchema>): ProviderCompany {
+  return { tmdbId: c.id, name: c.name, logoPath: c.logo_path ?? null };
+}
+
+function toEpisodeRef(e: z.infer<typeof episodeRefSchema>): ProviderEpisodeRef | null {
+  if (!e) return null;
+  return {
+    seasonNumber: e.season_number,
+    episodeNumber: e.episode_number,
+    name: e.name,
+    airDate: e.air_date || null,
+  };
+}
+
+/** Merges a person's jobs ("Director, Screenplay") and keeps only the jobs listed above, in that order. */
+function movieCrew(
+  crew: NonNullable<z.infer<typeof movieCreditsSchema>>['crew'],
+): ProviderPerson[] {
+  const byPerson = new Map<number, ProviderPerson & { jobs: string[] }>();
+  for (const c of crew) {
+    if (!c.job || !MOVIE_CREW_JOBS.includes(c.job)) continue;
+    const existing = byPerson.get(c.id);
+    if (existing) {
+      if (!existing.jobs.includes(c.job)) existing.jobs.push(c.job);
+    } else {
+      byPerson.set(c.id, {
+        tmdbId: c.id,
+        name: c.name,
+        role: c.job,
+        profilePath: c.profile_path ?? null,
+        jobs: [c.job],
+      });
+    }
+  }
+  return [...byPerson.values()]
+    .sort(
+      (a, b) => MOVIE_CREW_JOBS.indexOf(a.jobs[0] ?? '') - MOVIE_CREW_JOBS.indexOf(b.jobs[0] ?? ''),
+    )
+    .map(({ jobs, ...p }) => ({
+      ...p,
+      role: MOVIE_CREW_JOBS.filter((j) => jobs.includes(j)).join(', '),
+    }));
+}
+
 const movieDetailsSchema = z.object({
   id: z.number(),
   title: z.string().default(''),
@@ -99,6 +208,9 @@ const movieDetailsSchema = z.object({
   backdrop_path: z.string().nullish(),
   genres: z.array(genreSchema).default([]),
   runtime: z.number().nullish(),
+  status: z.string().nullish(),
+  production_companies: z.array(companySchema).default([]),
+  credits: movieCreditsSchema,
   ...votes,
 });
 
@@ -112,6 +224,21 @@ const tvDetailsSchema = z.object({
   backdrop_path: z.string().nullish(),
   genres: z.array(genreSchema).default([]),
   number_of_seasons: z.number().nullish(),
+  status: z.string().nullish(),
+  networks: z.array(companySchema).default([]),
+  production_companies: z.array(companySchema).default([]),
+  created_by: z
+    .array(
+      z.object({
+        id: z.number(),
+        name: z.string().default(''),
+        profile_path: z.string().nullish(),
+      }),
+    )
+    .default([]),
+  last_episode_to_air: episodeRefSchema,
+  next_episode_to_air: episodeRefSchema,
+  aggregate_credits: aggregateCreditsSchema,
   ...votes,
   seasons: z
     .array(
@@ -228,7 +355,10 @@ export class TmdbProvider implements MetadataProvider {
   }
 
   async movieDetails(tmdbId: number): Promise<ProviderTitleDetails> {
-    const d = this.parse(movieDetailsSchema, await this.get(`/movie/${tmdbId}`, {}));
+    const d = this.parse(
+      movieDetailsSchema,
+      await this.get(`/movie/${tmdbId}`, { append_to_response: 'credits' }),
+    );
     return {
       mediaType: 'movie',
       tmdbId: d.id,
@@ -244,11 +374,30 @@ export class TmdbProvider implements MetadataProvider {
       seasons: null,
       voteAverage: d.vote_average ?? null,
       voteCount: d.vote_count ?? 0,
+      status: d.status || null,
+      lastEpisodeToAir: null,
+      nextEpisodeToAir: null,
+      cast: (d.credits?.cast ?? [])
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .slice(0, CAST_LIMIT)
+        .map((c) => ({
+          tmdbId: c.id,
+          name: c.name,
+          role: c.character ?? '',
+          profilePath: c.profile_path ?? null,
+        })),
+      crew: movieCrew(d.credits?.crew ?? []),
+      networks: [],
+      productionCompanies: d.production_companies.slice(0, COMPANY_LIMIT).map(toCompany),
     };
   }
 
   async tvDetails(tmdbId: number): Promise<ProviderTitleDetails> {
-    const d = this.parse(tvDetailsSchema, await this.get(`/tv/${tmdbId}`, {}));
+    const d = this.parse(
+      tvDetailsSchema,
+      await this.get(`/tv/${tmdbId}`, { append_to_response: 'aggregate_credits' }),
+    );
     return {
       mediaType: 'tv',
       tmdbId: d.id,
@@ -273,6 +422,30 @@ export class TmdbProvider implements MetadataProvider {
         })),
       voteAverage: d.vote_average ?? null,
       voteCount: d.vote_count ?? 0,
+      status: d.status || null,
+      lastEpisodeToAir: toEpisodeRef(d.last_episode_to_air),
+      nextEpisodeToAir: toEpisodeRef(d.next_episode_to_air),
+      cast: (d.aggregate_credits?.cast ?? [])
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .slice(0, CAST_LIMIT)
+        .map((c) => ({
+          tmdbId: c.id,
+          name: c.name,
+          role: c.roles
+            .map((r) => r.character)
+            .filter(Boolean)
+            .join(' / '),
+          profilePath: c.profile_path ?? null,
+        })),
+      crew: d.created_by.map((p) => ({
+        tmdbId: p.id,
+        name: p.name,
+        role: 'Creator',
+        profilePath: p.profile_path ?? null,
+      })),
+      networks: d.networks.map(toCompany),
+      productionCompanies: d.production_companies.slice(0, COMPANY_LIMIT).map(toCompany),
     };
   }
 

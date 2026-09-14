@@ -180,12 +180,13 @@ All routes are under `/api/v1`; errors are `{ "error": { "code", "message", "det
 | POST | `/auth/logout` | Bearer | Revoke the current session |
 | GET | `/auth/session` | Bearer | `{ authenticated: true, expiresAt }` |
 | GET | `/search?q=&type=all|movie|tv&page=` | Bearer | TMDB search with library membership flags |
-| GET | `/titles/:mediaType/:tmdbId` | Bearer | Title details (seasons for TV) |
+| GET | `/titles/:mediaType/:tmdbId` | Bearer | Title details: seasons, cast and crew, networks and studios, status, last/next episode |
 | POST | `/watches` | Bearer | Log a watch `{ mediaType, tmdbId, watchedOn, rating?, season?, note? }` |
 | PATCH | `/watches/:id` | Bearer | Edit a watch (`null` clears rating/season/note) |
 | DELETE | `/watches/:id` | Bearer | Delete a watch (removes the title when it was the last one) |
 | GET | `/library?type=&sort=recent|title|rating&cursor=&limit=` | Bearer | Library grid data |
 | GET | `/library/:id` | Bearer | Item with full history |
+| GET | `/library/releases` | Bearer | Series with a new unwatched episode (last 30 days) or an upcoming one (next 14 days); refreshes stale snapshots of running series first |
 | GET | `/public/recent?limit=` | – | Public feed |
 | GET | `/health` (root) | – | `ok` / `degraded` |
 

@@ -2,8 +2,10 @@ import { ArrowSquareOut, PencilSimple, Trash } from '@phosphor-icons/react';
 import type { WatchEntry } from '@seen/shared';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { CastRow } from '../components/CastRow.js';
 import { ContinueWatchingCard } from '../components/Progress.js';
 import { SeasonsList } from '../components/SeasonsList.js';
+import { TitleDetailsList } from '../components/TitleDetailsList.js';
 import { TitleHero } from '../components/TitleHero.js';
 import { AlertDialog } from '../components/ui/AlertDialog.js';
 import { Banner } from '../components/ui/Banner.js';
@@ -34,11 +36,9 @@ export function LibraryItemScreen() {
 
   const detail = query.data;
   const item = detail?.item;
-  // Seasons are not part of the snapshot; fetch them live and degrade silently if TMDB is unavailable.
-  const title = useTitleQuery(
-    item?.mediaType === 'tv' ? 'tv' : undefined,
-    item?.mediaType === 'tv' ? item.tmdbId : undefined,
-  );
+  // Seasons, cast and companies are not part of the snapshot; fetch them live and degrade silently
+  // to the stored status and episodes if TMDB is unavailable.
+  const title = useTitleQuery(item?.mediaType, item?.tmdbId);
 
   const confirmDelete = async () => {
     if (!pendingDelete || !item) return;
@@ -188,6 +188,18 @@ export function LibraryItemScreen() {
           </li>
         ))}
       </InsetGroupedList>
+
+      {title.data && <CastRow cast={title.data.cast} />}
+      <TitleDetailsList
+        mediaType={item.mediaType}
+        status={title.data?.status ?? item.status}
+        lastEpisodeToAir={title.data?.lastEpisodeToAir ?? item.lastEpisodeToAir}
+        nextEpisodeToAir={title.data?.nextEpisodeToAir ?? item.nextEpisodeToAir}
+        networks={title.data?.networks}
+        productionCompanies={title.data?.productionCompanies}
+        crew={title.data?.crew}
+        releaseDate={item.releaseDate}
+      />
 
       <InsetGroupedList>
         <Row

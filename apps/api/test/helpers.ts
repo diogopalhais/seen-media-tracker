@@ -35,6 +35,17 @@ export class Clock {
   }
 }
 
+/** Titles for which the provider reports nothing beyond the basics. */
+export const NO_ENRICHMENT = {
+  status: null,
+  lastEpisodeToAir: null,
+  nextEpisodeToAir: null,
+  cast: [],
+  crew: [],
+  networks: [],
+  productionCompanies: [],
+} satisfies Partial<ProviderTitleDetails>;
+
 export const MOVIES: ProviderTitleDetails[] = [
   {
     mediaType: 'movie',
@@ -54,6 +65,23 @@ export const MOVIES: ProviderTitleDetails[] = [
     seasons: null,
     voteAverage: 7.8,
     voteCount: 12345,
+    status: 'Released',
+    lastEpisodeToAir: null,
+    nextEpisodeToAir: null,
+    cast: [
+      { tmdbId: 1190668, name: 'Timothée Chalamet', role: 'Paul Atreides', profilePath: '/tc.jpg' },
+      { tmdbId: 505710, name: 'Zendaya', role: 'Chani', profilePath: null },
+    ],
+    crew: [
+      {
+        tmdbId: 137427,
+        name: 'Denis Villeneuve',
+        role: 'Director, Screenplay',
+        profilePath: '/dv.jpg',
+      },
+    ],
+    networks: [],
+    productionCompanies: [{ tmdbId: 923, name: 'Legendary Pictures', logoPath: '/leg.png' }],
   },
   {
     mediaType: 'movie',
@@ -70,6 +98,7 @@ export const MOVIES: ProviderTitleDetails[] = [
     seasons: null,
     voteAverage: 7.8,
     voteCount: 12345,
+    ...NO_ENRICHMENT,
   },
   {
     mediaType: 'movie',
@@ -86,6 +115,7 @@ export const MOVIES: ProviderTitleDetails[] = [
     seasons: null,
     voteAverage: 7.8,
     voteCount: 12345,
+    ...NO_ENRICHMENT,
   },
 ];
 
@@ -114,6 +144,24 @@ export const SHOWS: ProviderTitleDetails[] = [
     ],
     voteAverage: 6.9,
     voteCount: 320,
+    // Caught-up viewers see an upcoming alert: the next episode airs 8 days after the test clock.
+    status: 'Returning Series',
+    lastEpisodeToAir: {
+      seasonNumber: 1,
+      episodeNumber: 6,
+      name: 'The High-Handed Enemy',
+      airDate: '2024-12-22',
+    },
+    nextEpisodeToAir: {
+      seasonNumber: 2,
+      episodeNumber: 1,
+      name: 'Chapter One',
+      airDate: '2026-09-18',
+    },
+    cast: [{ tmdbId: 1, name: 'Emily Watson', role: 'Valya Harkonnen', profilePath: null }],
+    crew: [{ tmdbId: 2, name: 'Diane Ademu-John', role: 'Creator', profilePath: null }],
+    networks: [{ tmdbId: 49, name: 'HBO', logoPath: '/hbo.png' }],
+    productionCompanies: [{ tmdbId: 923, name: 'Legendary Television', logoPath: null }],
   },
   {
     mediaType: 'tv',
@@ -145,6 +193,27 @@ export const SHOWS: ProviderTitleDetails[] = [
     ],
     voteAverage: 8.4,
     voteCount: 3200,
+    // S2 E9 aired 5 days before the test clock and is the newest aired episode; E10 is far off.
+    status: 'Returning Series',
+    lastEpisodeToAir: {
+      seasonNumber: 2,
+      episodeNumber: 9,
+      name: 'The After Hours',
+      airDate: '2026-09-05',
+    },
+    nextEpisodeToAir: {
+      seasonNumber: 2,
+      episodeNumber: 10,
+      name: 'Cold Harbor',
+      airDate: '2999-01-01',
+    },
+    cast: [
+      { tmdbId: 3, name: 'Adam Scott', role: 'Mark Scout', profilePath: '/as.jpg' },
+      { tmdbId: 4, name: 'Britt Lower', role: 'Helly R.', profilePath: null },
+    ],
+    crew: [{ tmdbId: 5, name: 'Dan Erickson', role: 'Creator', profilePath: null }],
+    networks: [{ tmdbId: 2552, name: 'Apple TV+', logoPath: '/atv.png' }],
+    productionCompanies: [{ tmdbId: 6, name: 'Red Hour Productions', logoPath: null }],
   },
 ];
 
@@ -265,7 +334,9 @@ export interface TestContext {
   login: () => Promise<string>;
 }
 
-export async function createTestContext(): Promise<TestContext> {
+export async function createTestContext(
+  options: { refresh?: Partial<import('../src/services/refresh.js').RefreshOptions> } = {},
+): Promise<TestContext> {
   const db = await createPgliteDb();
   const provider = new StubProvider();
   const clock = new Clock();
@@ -279,6 +350,7 @@ export async function createTestContext(): Promise<TestContext> {
     provider,
     logger: pino({ level: 'silent' }),
     now: clock.now,
+    ...(options.refresh ? { refresh: options.refresh } : {}),
   });
 
   const request: TestContext['request'] = (path, init = {}) => {

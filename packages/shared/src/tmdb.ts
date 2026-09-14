@@ -32,6 +32,30 @@ export function tmdbStillUrl(
   return `${TMDB_IMAGE_BASE}/${size}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+export type ProfileSize = 'w185' | 'h632';
+
+export function tmdbProfileUrl(
+  path: string | null | undefined,
+  size: ProfileSize = 'w185',
+): string | null {
+  if (!path) return null;
+  return `${TMDB_IMAGE_BASE}/${size}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+export type LogoSize = 'w92' | 'w185';
+
+export function tmdbLogoUrl(
+  path: string | null | undefined,
+  size: LogoSize = 'w185',
+): string | null {
+  if (!path) return null;
+  return `${TMDB_IMAGE_BASE}/${size}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+export function tmdbPersonUrl(tmdbId: number): string {
+  return `${TMDB_SITE_BASE}/person/${tmdbId}`;
+}
+
 export function tmdbTitleUrl(mediaType: MediaType, tmdbId: number): string {
   return `${TMDB_SITE_BASE}/${mediaType}/${tmdbId}`;
 }

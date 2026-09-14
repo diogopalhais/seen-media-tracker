@@ -22,6 +22,7 @@ import { searchRoutes } from './routes/search.js';
 import { watchRoutes } from './routes/watches.js';
 import { LibraryRepository } from './services/library.js';
 import type { MetadataProvider } from './services/metadata/provider.js';
+import { type RefreshOptions, SnapshotRefresher } from './services/refresh.js';
 import { SessionService } from './services/sessions.js';
 import { SlidingWindow } from './services/sliding-window.js';
 import type { AppEnv } from './types.js';
@@ -39,6 +40,8 @@ export interface AppDeps {
   logger: Logger;
   now?: () => Date;
   startedAt?: number;
+  /** Tuning for the lazy snapshot refresh of running series (tests shorten the budget). */
+  refresh?: Partial<RefreshOptions>;
 }
 
 export function createApp(deps: AppDeps): Hono<AppEnv> {
@@ -46,6 +49,13 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   const nowMs = () => now().getTime();
   const sessions = new SessionService(deps.db, now);
   const library = new LibraryRepository(deps.db);
+  const refresher = new SnapshotRefresher(
+    library,
+    deps.provider,
+    now,
+    (err, itemId) => deps.logger.warn({ err, itemId }, 'snapshot refresh failed'),
+    deps.refresh,
+  );
   const requireAuth = requireAuthFactory(sessions);
   const loginFailures = new SlidingWindow(LOGIN_FAILURE_LIMIT, LOGIN_FAILURE_WINDOW_MS, nowMs);
   const publicWindow = new SlidingWindow(PUBLIC_RATE_LIMIT, PUBLIC_RATE_WINDOW_MS, nowMs);
@@ -105,7 +115,10 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   );
   app.route('/api/v1', searchRoutes({ provider: deps.provider, library, requireAuth }));
   app.route('/api/v1', watchRoutes({ provider: deps.provider, library, requireAuth, now }));
-  app.route('/api/v1', libraryRoutes({ library, provider: deps.provider, requireAuth, now }));
+  app.route(
+    '/api/v1',
+    libraryRoutes({ library, provider: deps.provider, requireAuth, now, refresher }),
+  );
   app.route('/api/v1', importRoutes({ provider: deps.provider, library, requireAuth, now }));
   app.route('/api/v1/public', publicRoutes({ library, now }));
 

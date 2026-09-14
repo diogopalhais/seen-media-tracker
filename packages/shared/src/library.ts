@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  AiredEpisodeSchema,
   MediaItemSchema,
   MediaTypeFilterSchema,
   MediaTypeSchema,
@@ -23,6 +24,20 @@ export const LibraryListQuerySchema = z.object({
 export type LibraryListQuery = z.infer<typeof LibraryListQuerySchema>;
 export type LibraryListQueryInput = z.input<typeof LibraryListQuerySchema>;
 
+export const RELEASE_NEW_WINDOW_DAYS = 30;
+export const RELEASE_UPCOMING_WINDOW_DAYS = 14;
+export const RELEASES_LIMIT = 20;
+
+/**
+ * Why a series deserves attention: an episode aired recently that the owner has not watched, or one
+ * is about to air. Computed by the API from the snapshot and the watch tables.
+ */
+export const ReleaseAlertSchema = z.object({
+  kind: z.enum(['new_episode', 'upcoming']),
+  episode: AiredEpisodeSchema,
+});
+export type ReleaseAlert = z.infer<typeof ReleaseAlertSchema>;
+
 export const LibraryItemSummarySchema = z.object({
   id: z.string(),
   mediaType: MediaTypeSchema,
@@ -37,6 +52,8 @@ export const LibraryItemSummarySchema = z.object({
   watchCount: z.number().int().min(0),
   episodesWatched: z.number().int().min(0),
   lastSeason: z.number().int().nullable(),
+  /** Null for movies and for series with nothing new or upcoming. */
+  release: ReleaseAlertSchema.nullable(),
 });
 export type LibraryItemSummary = z.infer<typeof LibraryItemSummarySchema>;
 
@@ -45,6 +62,12 @@ export const LibraryListResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 export type LibraryListResponse = z.infer<typeof LibraryListResponseSchema>;
+
+/** Series with a release alert: new episodes first (newest aired first), then upcoming (soonest first). */
+export const LibraryReleasesResponseSchema = z.object({
+  items: z.array(LibraryItemSummarySchema),
+});
+export type LibraryReleasesResponse = z.infer<typeof LibraryReleasesResponseSchema>;
 
 export const LibraryItemDetailSchema = z.object({
   item: MediaItemSchema,
