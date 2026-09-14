@@ -205,6 +205,14 @@
   /* html, body and #root fill the screen and are the positioning root for bottom-anchored chrome
      (tab bar, banners, sheets). iOS home-screen web apps offset position:fixed elements against a
      shortened viewport, so those use position:absolute against these containers instead. */
+  /* iOS 26 home-screen web apps (translucent status bar) draw from the top of the screen but report a
+     viewport that is short by the status-bar height, leaving a dead band at the bottom and floating
+     bottom-anchored chrome. Only the large viewport unit reports the real screen height there. */
+  @media (display-mode: standalone), (display-mode: fullscreen) {
+    html {
+      height: 100lvh;
+    }
+  }
   body {
     position: relative;
   }
