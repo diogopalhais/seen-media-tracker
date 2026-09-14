@@ -146,7 +146,7 @@ export function Screen({
 
       <div
         className={cn(
-          'flex-1 pb-[calc(3.75rem+env(safe-area-inset-bottom,0px)+1.5rem)] md:pb-6',
+          'flex-1 pb-[calc(var(--tab-bar-offset)+3.75rem+1.5rem)] md:pb-6',
           false,
         )}
       >

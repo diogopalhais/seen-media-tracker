@@ -28,7 +28,7 @@ export function PwaUpdater() {
 
   if (!needRefresh || applied.current) return null;
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px)+1rem)] z-50 md:bottom-4 md:left-64">
+    <div className="pointer-events-none absolute inset-x-0 bottom-[calc(var(--tab-bar-offset)+3.75rem+1rem)] z-50 md:bottom-4 md:left-64">
       <Banner
         tone="info"
         className="pointer-events-auto mx-auto max-w-md"

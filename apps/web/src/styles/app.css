@@ -268,6 +268,11 @@
       padding-right: max(var(--spacing-margin-wide), env(safe-area-inset-right, 0px));
     }
   }
+  /* Floating tab bar offset: sits at the home-indicator safe area like the native iOS 26 bar, with a
+     12pt floor for devices without one (and for the browser, where the inset is 0). */
+  :root {
+    --tab-bar-offset: max(env(safe-area-inset-bottom, 0px), 0.75rem);
+  }
   .bar-material {
     background: var(--bar-bg);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
