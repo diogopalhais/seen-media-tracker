@@ -23,6 +23,22 @@ const originList = z
   )
   .transform((origins) => origins.map((o) => new URL(o).origin));
 
+/**
+ * Accepts the PHC string (`$argon2id$…`) or its base64 encoding. The base64 form exists because
+ * `$` is interpolated by Docker Compose, Coolify and most shells, silently corrupting the hash.
+ */
+export function decodeOwnerHash(value: string): string | null {
+  const trimmed = value.trim();
+  if (trimmed.startsWith('$argon2id$')) return trimmed;
+  try {
+    const decoded = Buffer.from(trimmed, 'base64').toString('utf8').trim();
+    if (decoded.startsWith('$argon2id$')) return decoded;
+  } catch {
+    // not base64
+  }
+  return null;
+}
+
 export const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -39,7 +55,18 @@ export const EnvSchema = z.object({
       1,
       'OWNER_PASSWORD_HASH is required (generate it with `pnpm --filter @seen/api hash-password`)',
     )
-    .refine((v) => v.startsWith('$argon2id$'), 'OWNER_PASSWORD_HASH must be an argon2id hash'),
+    .transform((v, ctx) => {
+      const decoded = decodeOwnerHash(v);
+      if (!decoded) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'OWNER_PASSWORD_HASH must be an argon2id hash. Docker Compose and Coolify interpolate `$` in values, which mangles the `$argon2id$…` form: paste the base64 form printed by `pnpm --filter @seen/api hash-password` instead (or escape every `$` as `$$`).',
+        });
+        return z.NEVER;
+      }
+      return decoded;
+    }),
   TMDB_API_TOKEN: z.string().min(1, 'TMDB_API_TOKEN is required'),
   TMDB_LANGUAGE: z
     .string()

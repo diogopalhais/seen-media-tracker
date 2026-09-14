@@ -31,4 +31,10 @@ const digest = await hash(password, {
   timeCost: 2,
   parallelism: 1,
 });
-process.stdout.write(`${digest}\n`);
+const b64 = Buffer.from(digest, 'utf8').toString('base64');
+process.stderr.write(
+  '\nOWNER_PASSWORD_HASH (base64 form — use this in Coolify, Docker Compose and .env files;\nthe raw hash contains "$" which those tools interpolate and corrupt):\n\n',
+);
+process.stdout.write(`${b64}\n`);
+process.stderr.write('\nRaw argon2id hash, for reference only:\n');
+process.stderr.write(`${digest}\n`);

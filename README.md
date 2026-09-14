@@ -50,7 +50,7 @@ Useful scripts:
 | Variable | Required | Description |
 | --- | --- | --- |
 | `DATABASE_URL` | yes | `postgres://user:password@host:5432/db` |
-| `OWNER_PASSWORD_HASH` | yes | argon2id hash from `pnpm --filter @seen/api hash-password` |
+| `OWNER_PASSWORD_HASH` | yes | From `pnpm --filter @seen/api hash-password`. Use the **base64 line** it prints: the raw `$argon2id$…` form is corrupted by `$` interpolation in Docker Compose, Coolify and shells. |
 | `TMDB_API_TOKEN` | yes | TMDB v4 read access token (kept server-side only) |
 | `CORS_ORIGINS` | yes | Comma-separated web app origins, e.g. `https://seen.example.com,https://seen-preview.pages.dev` |
 | `TRUST_PROXY` | no (`0`) | Set `1` behind Coolify/Traefik so `X-Forwarded-For` is trusted for rate limiting |
@@ -75,7 +75,7 @@ The API refuses to start with a clear message if any required variable is missin
 
 1. In Coolify create a new **Application → Docker Compose** resource pointing at this repository (branch `main`, compose file `compose.yaml`).
 2. Set the environment variables in Coolify (they are interpolated into the compose file):
-   `POSTGRES_PASSWORD` (URL-safe, no `@ / : #`), `OWNER_PASSWORD_HASH`, `TMDB_API_TOKEN`, `CORS_ORIGINS`, and optionally `POSTGRES_USER`, `POSTGRES_DB`, `TMDB_LANGUAGE`, `LOG_LEVEL`. `DATABASE_URL` is assembled inside the compose file from the `db` service name; `TRUST_PROXY=1` is already set.
+   `POSTGRES_PASSWORD` (URL-safe, no `@ / : #`), `OWNER_PASSWORD_HASH` (the base64 line from `hash-password`; never the raw `$argon2id$` string), `TMDB_API_TOKEN`, `CORS_ORIGINS`, and optionally `POSTGRES_USER`, `POSTGRES_DB`, `TMDB_LANGUAGE`, `LOG_LEVEL`. `DATABASE_URL` is assembled inside the compose file from the `db` service name; `TRUST_PROXY=1` is already set.
 3. Attach the domain (e.g. `api.seen.<your-domain>`) to the `api` service on port `3000`. Coolify's Traefik proxy terminates TLS with Let's Encrypt.
 4. Deploy. Migrations run on start under an advisory lock; `GET /health` returns `{"status":"ok"}` when the database is reachable.
 5. Enable "deploy on push" (GitHub webhook) so `main` deploys automatically.
