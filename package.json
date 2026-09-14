@@ -2,7 +2,7 @@
   "name": "seen",
   "private": true,
   "version": "0.1.0",
-  "description": "Seen — a personal movie and TV tracker",
+  "description": "Seen \u2014 a personal movie and TV tracker",
   "packageManager": "pnpm@10.29.3",
   "engines": {
     "node": ">=22"
@@ -17,7 +17,9 @@
     "typecheck": "pnpm -r --filter './packages/*' --filter './apps/*' typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "pnpm -r --filter './packages/*' --filter './apps/*' build"
+    "build": "pnpm -r --filter './packages/*' --filter './apps/*' build",
+    "deploy:web": "pnpm --filter @seen/web build && pnpm --filter @seen/web deploy",
+    "deploy:web:setup": "bash scripts/cloudflare-pages-setup.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",

@@ -9,7 +9,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy": "wrangler pages deploy dist --project-name seen --branch main --commit-dirty=true",
+    "pages:create": "wrangler pages project create seen --production-branch main"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
@@ -38,6 +40,7 @@
     "vite": "^8.3.0",
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.1.11",
-    "workbox-window": "^7.4.1"
+    "workbox-window": "^7.4.1",
+    "wrangler": "^4.131.2"
   }
 }

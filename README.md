@@ -84,18 +84,31 @@ CI builds the image and validates the compose file on every push; it does not de
 
 Optional: proxy the API hostname through Cloudflare (orange cloud). The public feed sends `Cache-Control: public, max-age=300, stale-while-revalidate=600` and an `ETag`, so the edge absorbs traffic from your website.
 
-### Web app on Cloudflare Pages
+### Web app on Cloudflare Pages (Wrangler)
 
-1. Cloudflare dashboard → Workers & Pages → Create → Pages → connect the GitHub repository.
-2. Build settings:
-   - Build command: `pnpm install --frozen-lockfile && pnpm --filter @seen/web build`
-   - Build output directory: `apps/web/dist`
-   - Environment variable: `VITE_API_BASE_URL=https://api.seen.<your-domain>` (set for Production; for Preview use the same or a staging API)
-   - Node version: set `NODE_VERSION=22` (Pages reads `.nvmrc` too)
-3. Add the custom domain (e.g. `seen.<your-domain>`). Preview deployments are enabled per branch/PR by default.
-4. On Coolify, add the Pages origin(s) to `CORS_ORIGINS` and redeploy the API.
+Deploys are driven by Wrangler, so nothing has to be clicked together in the dashboard.
 
-The build emits `_redirects` (SPA fallback for deep links) and `_headers` (CSP, security headers, `no-cache` for `index.html`/`sw.js`/manifest, immutable caching for hashed assets).
+**One-time setup** (creates the project, publishes the first build, attaches the domain):
+
+```bash
+pnpm --filter @seen/web exec wrangler login          # browser login, once per machine
+
+VITE_API_BASE_URL=https://api.seen.<your-domain> \
+WEB_DOMAIN=seen.<your-domain> \
+CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… \
+pnpm deploy:web:setup
+```
+
+The API token needs *Cloudflare Pages: Edit*, *Zone: DNS: Edit* and *Zone: Read* on the zone. Skip `WEB_DOMAIN` and the token to only create and deploy; the site is then at `https://seen.pages.dev`.
+
+**Continuous deploys**: `.github/workflows/deploy-web.yml` builds and publishes on every push to `main` that touches the web app or shared package. Configure the repository once:
+
+- Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
+- Variable: `VITE_API_BASE_URL` (e.g. `https://api.seen.<your-domain>`)
+
+**Manual deploy** from your machine: `VITE_API_BASE_URL=https://api.seen.<your-domain> pnpm deploy:web`.
+
+The build emits `_redirects` (SPA fallback for deep links) and `_headers` (CSP, security headers, `no-cache` for `index.html`/`sw.js`/manifest, immutable caching for hashed assets). After the first deploy, add the Pages origin to `CORS_ORIGINS` on Coolify if it is not already there.
 
 ### Rollback
 

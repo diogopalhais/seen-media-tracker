@@ -1,0 +1,4 @@
+# Cloudflare Pages project for the web app. Deploy with `pnpm deploy:web` (see README).
+name = "seen"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-01"
