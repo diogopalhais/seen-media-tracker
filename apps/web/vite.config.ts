@@ -1,21 +1,38 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+/** CSP `sha256-…` sources for every inline `<script>` in the built index.html (the pre-paint theme script). */
+function inlineScriptHashes(html: string): string[] {
+  const hashes: string[] = [];
+  for (const match of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)) {
+    const body = match[1] ?? '';
+    if (body.trim()) hashes.push(`'sha256-${createHash('sha256').update(body).digest('base64')}'`);
+  }
+  return hashes;
+}
+
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Cloudflare Pages `_headers`: strict CSP that only allows connecting to the configured API origin. */
+/** Cloudflare `_headers`: strict CSP that only allows connecting to the configured API origin. */
 function cloudflareHeaders(apiOrigin: string): Plugin {
   return {
     name: 'seen:cloudflare-headers',
     apply: 'build',
     closeBundle() {
+      const outDir = resolve(import.meta.dirname, 'dist');
+      const indexPath = resolve(outDir, 'index.html');
+      const scriptSrc = [
+        "'self'",
+        ...(existsSync(indexPath) ? inlineScriptHashes(readFileSync(indexPath, 'utf8')) : []),
+      ];
       const csp = [
         "default-src 'self'",
-        "script-src 'self'",
+        `script-src ${scriptSrc.join(' ')}`,
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob: https://image.tmdb.org",
         `connect-src 'self' ${apiOrigin}`,
@@ -50,7 +67,6 @@ function cloudflareHeaders(apiOrigin: string): Plugin {
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 `;
-      const outDir = resolve(import.meta.dirname, 'dist');
       mkdirSync(outDir, { recursive: true });
       writeFileSync(resolve(outDir, '_headers'), headers);
     },

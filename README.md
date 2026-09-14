@@ -84,36 +84,28 @@ CI builds the image and validates the compose file on every push; it does not de
 
 Optional: proxy the API hostname through Cloudflare (orange cloud). The public feed sends `Cache-Control: public, max-age=300, stale-while-revalidate=600` and an `ETag`, so the edge absorbs traffic from your website.
 
-### Web app on Cloudflare Pages (Wrangler)
+### Web app on Cloudflare (Workers static assets, via Wrangler)
 
-Deploys are driven by Wrangler, so nothing has to be clicked together in the dashboard.
-
-**One-time setup** (creates the project, publishes the first build, attaches the domain):
+Cloudflare Pages is now part of Workers, so the web app ships as a Worker that serves `apps/web/dist` as static assets. `apps/web/wrangler.toml` declares the custom domain; `wrangler deploy` creates the DNS record and certificate for it.
 
 ```bash
 pnpm --filter @seen/web exec wrangler login          # browser login, once per machine
-
-VITE_API_BASE_URL=https://api.seen.<your-domain> \
-WEB_DOMAIN=seen.<your-domain> \
-CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… \
-pnpm deploy:web:setup
+VITE_API_BASE_URL=https://api.seen.<your-domain> pnpm deploy:web
 ```
 
-The API token needs *Cloudflare Pages: Edit*, *Zone: DNS: Edit* and *Zone: Read* on the zone. Skip `WEB_DOMAIN` and the token to only create and deploy; the site is then at `https://seen.pages.dev`.
+If a DNS record for the domain already exists (for example pointing at the API server), delete it in the Cloudflare dashboard first; Workers custom domains refuse to overwrite existing records.
 
 **Continuous deploys**: `.github/workflows/deploy-web.yml` builds and publishes on every push to `main` that touches the web app or shared package. Configure the repository once:
 
-- Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
+- Secrets: `CLOUDFLARE_API_TOKEN` (permissions: *Workers Scripts: Edit*, *Workers Routes: Edit*, *Zone: Read*, *Zone: DNS: Edit* on the zone), `CLOUDFLARE_ACCOUNT_ID`
 - Variable: `VITE_API_BASE_URL` (e.g. `https://api.seen.<your-domain>`)
 
-**Manual deploy** from your machine: `VITE_API_BASE_URL=https://api.seen.<your-domain> pnpm deploy:web`.
-
-The build emits `_redirects` (SPA fallback for deep links) and `_headers` (CSP, security headers, `no-cache` for `index.html`/`sw.js`/manifest, immutable caching for hashed assets). After the first deploy, add the Pages origin to `CORS_ORIGINS` on Coolify if it is not already there.
+Deep links fall back to `index.html` through `not_found_handling = "single-page-application"` in `wrangler.toml`, and the build emits `_headers` (CSP, security headers, `no-cache` for `index.html`/`sw.js`/manifest, immutable caching for hashed assets), which Workers static assets honour. The Worker also answers on `https://seen.<account>.workers.dev`, but the API only allows the custom domain origin, so use the custom domain for real sessions. `CORS_ORIGINS` on the API must include `https://seen.<your-domain>`.
 
 ### Rollback
 
 - **API**: Coolify → the application → Deployments → redeploy a previous successful deployment. Migrations are forward-only; take a dump first (below) before deploying a release that includes a migration.
-- **Web**: Cloudflare Pages → Deployments → "Rollback to this deployment" on the last good build.
+- **Web**: Cloudflare dashboard → Workers & Pages → `seen` → Deployments → roll back to the previous version (or `wrangler rollback`).
 
 ## Backups (PostgreSQL)
 

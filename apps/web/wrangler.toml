@@ -1,4 +1,16 @@
-# Cloudflare Pages project for the web app. Deploy with `pnpm deploy:web` (see README).
+# Cloudflare Worker serving the built web app as static assets (Pages is now part of Workers).
+# Deploy: `pnpm deploy:web` (see README). The custom domain, its DNS record and certificate are
+# created by `wrangler deploy` from the route below.
 name = "seen"
-pages_build_output_dir = "dist"
 compatibility_date = "2026-09-01"
+# Keep the *.workers.dev preview URL alongside the custom domain (handy for smoke checks).
+workers_dev = true
+
+[assets]
+directory = "./dist"
+# Deep links (/library/…, /search/…) resolve to index.html; _headers and _redirects in dist still apply.
+not_found_handling = "single-page-application"
+
+[[routes]]
+pattern = "seen.diogopalhais.xyz"
+custom_domain = true

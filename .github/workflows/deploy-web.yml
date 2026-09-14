@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build and publish to Cloudflare Pages
+    name: Build and publish to Cloudflare Workers (static assets)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -51,4 +51,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/web
-          command: pages deploy dist --project-name seen --branch main --commit-dirty=true
+          command: deploy

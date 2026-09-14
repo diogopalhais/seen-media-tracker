@@ -107,7 +107,7 @@
 ## 14. Cloudflare Pages deployment
 
 - [x] 14.1 Add `public/_redirects` (`/* /index.html 200`) and `public/_headers` (CSP allowing self, `image.tmdb.org` images and the API origin for connect; `X-Frame-Options`, `Referrer-Policy`; `no-cache` for `index.html`, `sw.js` and manifest; `immutable` for hashed assets)
-- [ ] 14.2 Create the Cloudflare Pages project connected to the repository (build `pnpm install --frozen-lockfile && pnpm --filter web build`, output `apps/web/dist`, `VITE_API_BASE_URL` env), attach the custom domain, enable preview deployments
+- [x] 14.2 Create the Cloudflare Pages project connected to the repository (build `pnpm install --frozen-lockfile && pnpm --filter web build`, output `apps/web/dist`, `VITE_API_BASE_URL` env), attach the custom domain, enable preview deployments
 - [ ] 14.3 Set `CORS_ORIGINS` on Coolify to the Pages custom domain (and preview origin if desired), redeploy, and verify login, search, log watch and public feed end-to-end from an iPhone in standalone mode
 
 ## 15. Personal website integration and wrap-up

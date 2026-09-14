@@ -10,8 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "deploy": "wrangler pages deploy dist --project-name seen --branch main --commit-dirty=true",
-    "pages:create": "wrangler pages project create seen --production-branch main"
+    "cf:deploy": "wrangler deploy"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
