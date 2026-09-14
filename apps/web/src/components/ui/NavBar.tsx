@@ -144,12 +144,7 @@ export function Screen({
         </div>
       )}
 
-      <div
-        className={cn(
-          'flex-1 pb-[calc(var(--tab-bar-offset)+3.75rem+1.5rem)] md:pb-6',
-          false,
-        )}
-      >
+      <div className={cn('flex-1 pb-[calc(var(--tab-bar-offset)+3.75rem+1.5rem)] md:pb-6', false)}>
         {children}
       </div>
     </div>
