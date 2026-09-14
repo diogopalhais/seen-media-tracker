@@ -68,7 +68,7 @@
 - [x] 9.1 Write a multi-stage Dockerfile (pnpm fetch and install with lockfile, build shared and api, prune to production, `node:22-alpine`, non-root user, `HEALTHCHECK` on `/health`) and a `.dockerignore`
 - [x] 9.2 Write the production `compose.yaml`: `api` service built from the Dockerfile with `depends_on` on a healthy `db`, environment passed through from Coolify, and `db` service `postgres:17-alpine` with `pgdata` named volume, `pg_isready` healthcheck, credentials from environment and no published port
 - [x] 9.3 Add Docker build and `docker compose config` validation steps to CI (no push) and document the Coolify setup: Docker Compose app from the repo, environment variables (`DATABASE_URL` pointing at the `db` service, Postgres credentials, `TRUST_PROXY=1`), domain `api.seen.<domain>` attached to the `api` service with automatic TLS
-- [ ] 9.4 Deploy the stack to Coolify, verify `/health` over HTTPS, confirm migrations ran and the `pgdata` volume persists across a redeploy
+- [x] 9.4 Deploy the stack to Coolify, verify `/health` over HTTPS, confirm migrations ran and the `pgdata` volume persists across a redeploy
 
 ## 10. Web app foundation (`apps/web`)
 
