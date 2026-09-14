@@ -8,6 +8,7 @@ import {
   type LibraryMembership,
   type MediaItem,
   type MediaType,
+  type MediaTypeFilter,
   type PublicRecentItem,
   RELEASE_NEW_WINDOW_DAYS,
   RELEASE_UPCOMING_WINDOW_DAYS,
@@ -673,7 +674,7 @@ export class LibraryRepository {
   }
 
   /** One row per title, described by its most recent event (log or episode watch), newest first. */
-  async publicRecent(limit: number): Promise<PublicRecentItem[]> {
+  async publicRecent(limit: number, type: MediaTypeFilter = 'all'): Promise<PublicRecentItem[]> {
     const events = sql`(
       select w.media_item_id, w.watched_on, w.created_at, w.season, null::int as episode from ${watchEntries} w
       union all
@@ -690,6 +691,7 @@ export class LibraryRepository {
         order by ev.media_item_id, ev.watched_on desc, ev.created_at desc, ev.season desc nulls last, ev.episode desc nulls last
       ) latest
       join ${mediaItems} on ${mediaItems}.id = latest.media_item_id
+      where ${type === 'all' ? sql`true` : sql`${mediaItems}.media_type = ${type}`}
       order by latest.watched_on desc, latest.created_at desc
       limit ${limit}`);
     const list = Array.isArray(rows) ? rows : ((rows as unknown as { rows: unknown[] }).rows ?? []);

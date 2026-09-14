@@ -29,8 +29,8 @@ export function publicRoutes(deps: PublicDeps): Hono<AppEnv> {
   const router = new Hono<AppEnv>();
 
   router.get('/recent', validate('query', PublicRecentQuerySchema), async (c) => {
-    const { limit } = c.req.valid('query');
-    const items = await deps.library.publicRecent(limit);
+    const { limit, type } = c.req.valid('query');
+    const items = await deps.library.publicRecent(limit, type);
     // generatedAt is deliberately excluded from the ETag so unchanged data validates as unchanged.
     const etag = etagFor(JSON.stringify(items));
     c.header('Cache-Control', PUBLIC_CACHE_CONTROL);

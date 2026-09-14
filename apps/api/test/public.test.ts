@@ -74,6 +74,25 @@ describe('GET /api/v1/public/recent', () => {
     expect(text).not.toContain('note');
   });
 
+  it('filters by media type so movies and shows can be listed separately', async () => {
+    await logWatch(ctx, token, { mediaType: 'movie', tmdbId: 550, watchedOn: '2026-09-05' });
+    await logWatch(ctx, token, { mediaType: 'movie', tmdbId: 438631, watchedOn: '2026-09-02' });
+    await logWatch(ctx, token, {
+      mediaType: 'tv',
+      tmdbId: 95396,
+      watchedOn: '2026-09-04',
+      season: 2,
+    });
+    const movies = await json(await recent('type=movie'));
+    expect(movies.items.map((i: { title: string }) => i.title)).toEqual(['Fight Club', 'Dune']);
+    expect(movies.items.every((i: { mediaType: string }) => i.mediaType === 'movie')).toBe(true);
+    const shows = await json(await recent('type=tv&limit=1'));
+    expect(shows.items).toHaveLength(1);
+    expect(shows.items[0]).toMatchObject({ mediaType: 'tv', title: 'Severance', season: 2 });
+    expect((await json(await recent())).items).toHaveLength(3);
+    expect((await recent('type=book')).status).toBe(400);
+  });
+
   it('honours the limit and rejects out-of-range values', async () => {
     await logWatch(ctx, token, { mediaType: 'movie', tmdbId: 550, watchedOn: '2026-08-01' });
     await logWatch(ctx, token, { mediaType: 'movie', tmdbId: 841, watchedOn: '2026-08-02' });

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { IsoTimestampSchema, MediaTypeSchema } from './media.js';
+import { IsoTimestampSchema, MediaTypeFilterSchema, MediaTypeSchema } from './media.js';
 import { RatingSchema } from './rating.js';
 
 export const PUBLIC_RECENT_DEFAULT = 10;
@@ -7,6 +7,8 @@ export const PUBLIC_RECENT_MAX = 50;
 
 export const PublicRecentQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(PUBLIC_RECENT_MAX).default(PUBLIC_RECENT_DEFAULT),
+  /** `movie` or `tv` for separate "latest movies" and "latest shows" lists; `all` mixes them. */
+  type: MediaTypeFilterSchema.default('all'),
 });
 export type PublicRecentQuery = z.infer<typeof PublicRecentQuerySchema>;
 

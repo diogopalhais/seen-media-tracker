@@ -132,6 +132,7 @@ Unauthenticated, CORS-open (`Access-Control-Allow-Origin: *`), cached for 5 minu
 
 ```
 GET https://api.seen.<your-domain>/api/v1/public/recent?limit=10     # limit: 1..50, default 10
+GET https://api.seen.<your-domain>/api/v1/public/recent?type=movie   # type: all (default) | movie | tv
 ```
 
 ```json
@@ -195,7 +196,7 @@ All routes are under `/api/v1`; errors are `{ "error": { "code", "message", "det
 | GET | `/push/config` | Bearer | Whether Web Push is configured, and the VAPID public key |
 | PUT / DELETE | `/push/subscriptions` | Bearer | Register or remove this device's push subscription |
 | POST | `/push/test` | Bearer | Send a test notification to every registered device |
-| GET | `/public/recent?limit=` | – | Public feed |
+| GET | `/public/recent?limit=&type=all|movie|tv` | – | Public feed, optionally movies or shows only |
 | GET | `/health` (root) | – | `ok` / `degraded` |
 
 Sessions are opaque 32-byte tokens, stored hashed, valid 30 days, sent as `Authorization: Bearer`.
