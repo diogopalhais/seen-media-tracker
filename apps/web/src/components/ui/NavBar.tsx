@@ -86,7 +86,8 @@ export function Screen({
         )}
       >
         <div className="safe-x grid h-[3.25rem] grid-cols-[1fr_auto_1fr] items-center">
-          <div className="flex justify-start">
+          {/* The bar itself is pointer-events-none on hero screens; its controls must stay tappable. */}
+          <div className="pointer-events-auto flex justify-start">
             {onBack && (
               <IconCircleButton onClick={onBack} aria-label={`Back to ${backLabel}`}>
                 <CaretLeft weight="bold" className="size-5" aria-hidden="true" />
@@ -101,7 +102,9 @@ export function Screen({
           >
             {title}
           </h1>
-          <div className="flex justify-end gap-2">{large && !collapsed ? null : trailing}</div>
+          <div className="pointer-events-auto flex justify-end gap-2">
+            {large && !collapsed ? null : trailing}
+          </div>
         </div>
         {accessory && !large && <div className="safe-x pb-2">{accessory}</div>}
       </header>
