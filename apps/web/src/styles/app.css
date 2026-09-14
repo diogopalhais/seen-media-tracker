@@ -202,7 +202,14 @@
     background: var(--bg-grouped);
     overscroll-behavior-y: none;
   }
+  /* html, body and #root fill the screen and are the positioning root for bottom-anchored chrome
+     (tab bar, banners, sheets). iOS home-screen web apps offset position:fixed elements against a
+     shortened viewport, so those use position:absolute against these containers instead. */
+  body {
+    position: relative;
+  }
   #root {
+    position: relative;
     height: 100%;
   }
   button,

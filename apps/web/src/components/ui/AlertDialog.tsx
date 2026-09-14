@@ -32,10 +32,10 @@ export function AlertDialog({
   return (
     <RadixAlert.Root open={open} onOpenChange={onOpenChange}>
       <RadixAlert.Portal>
-        <RadixAlert.Overlay className="fade-enter fixed inset-0 z-[60] bg-overlay" />
+        <RadixAlert.Overlay className="fade-enter absolute inset-0 z-[60] bg-overlay" />
         <RadixAlert.Content
           className={cn(
-            'fixed left-1/2 top-1/2 z-[70] w-[min(17rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.25rem] border border-card-border bg-bg-elevated text-center shadow-[var(--shadow)]',
+            'absolute left-1/2 top-1/2 z-[70] w-[min(17rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[1.25rem] border border-card-border bg-bg-elevated text-center shadow-[var(--shadow)]',
             'motion-safe:animate-[alert-in_var(--duration-screen)_var(--ease-ios)_both]',
           )}
         >

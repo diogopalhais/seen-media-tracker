@@ -75,12 +75,12 @@ export function Sheet({
         }}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="sheet-overlay fixed inset-0 z-40 bg-overlay" />
+          <Dialog.Overlay className="sheet-overlay absolute inset-0 z-40 bg-overlay" />
           <Dialog.Content
             aria-describedby={undefined}
             onOpenAutoFocus={(e) => e.preventDefault()}
             className={cn(
-              'sheet-panel fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[92dvh] w-full max-w-[40rem] flex-col rounded-t-sheet bg-glass-strong text-label outline-none',
+              'sheet-panel absolute inset-x-0 bottom-0 z-50 mx-auto flex max-h-[92%] w-full max-w-[40rem] flex-col rounded-t-sheet bg-glass-strong text-label outline-none',
               'border border-glass-border shadow-[var(--shadow)] [-webkit-backdrop-filter:saturate(180%)_blur(28px)] [backdrop-filter:saturate(180%)_blur(28px)]',
               'md:bottom-auto md:top-[8vh] md:max-h-[84vh] md:rounded-sheet',
             )}

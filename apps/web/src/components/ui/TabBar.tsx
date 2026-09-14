@@ -23,7 +23,7 @@ export function TabBar({ tabs, activeId, onSelect }: TabBarProps) {
     <nav
       aria-label="Main"
       className={cn(
-        'glass fixed inset-x-5 z-40 rounded-full',
+        'glass absolute inset-x-5 z-40 rounded-full',
         'bottom-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]',
         'md:static md:inset-auto md:h-full md:w-64 md:shrink-0 md:rounded-none md:border-0 md:border-r md:border-separator md:bg-bg-grouped md:shadow-none md:[backdrop-filter:none] md:safe-top',
       )}

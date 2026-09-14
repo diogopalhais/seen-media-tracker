@@ -131,7 +131,7 @@ export function RootLayout() {
 
   if (!activeTab) {
     return (
-      <div className="flex h-full md:flex-row">
+      <div className="relative flex h-full md:flex-row">
         <TabBar tabs={TABS} activeId="" onSelect={onSelect} />
         <main className="relative min-w-0 flex-1 overflow-y-auto">
           <NotFoundScreen />
@@ -141,11 +141,11 @@ export function RootLayout() {
   }
 
   return (
-    <div className="flex h-full md:flex-row">
+    <div className="relative flex h-full md:flex-row">
       <TabBar tabs={TABS} activeId={activeTab.id} onSelect={onSelect} />
       <main className="relative min-w-0 flex-1">
         {!online && (
-          <div className="pointer-events-none fixed inset-x-0 top-[env(safe-area-inset-top,0px)] z-50 md:left-64">
+          <div className="pointer-events-none absolute inset-x-0 top-[env(safe-area-inset-top,0px)] z-50 md:left-64">
             <Banner tone="offline" className="pointer-events-auto mx-auto max-w-md">
               You're offline. Showing what was saved on this device.
             </Banner>
