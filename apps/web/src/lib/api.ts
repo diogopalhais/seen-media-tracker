@@ -19,6 +19,12 @@ import {
   type LogWatchRequest,
   type MediaType,
   type MediaTypeFilter,
+  type PushConfig,
+  PushConfigSchema,
+  type PushSendResult,
+  PushSendResultSchema,
+  type PushSubscriptionRequest,
+  type PushUnsubscribeRequest,
   type SearchResponse,
   SearchResponseSchema,
   type SeasonDetails,
@@ -185,6 +191,14 @@ export const api = {
     request<LibraryReleasesResponse>('/api/v1/library/releases', {
       schema: LibraryReleasesResponseSchema,
     }),
+
+  pushConfig: () => request<PushConfig>('/api/v1/push/config', { schema: PushConfigSchema }),
+  subscribePush: (body: PushSubscriptionRequest) =>
+    request<void>('/api/v1/push/subscriptions', { method: 'PUT', body }),
+  unsubscribePush: (body: PushUnsubscribeRequest) =>
+    request<void>('/api/v1/push/subscriptions', { method: 'DELETE', body }),
+  pushTest: () =>
+    request<PushSendResult>('/api/v1/push/test', { method: 'POST', schema: PushSendResultSchema }),
 
   logWatch: (body: LogWatchRequest) =>
     request<WatchMutationResponse>('/api/v1/watches', {

@@ -23,6 +23,7 @@ export const queryKeys = {
   title: (type: MediaType, id: number) => ['title', type, id] as const,
   discover: ['discover'] as const,
   season: (id: number, n: number) => ['season', id, n] as const,
+  pushConfig: ['push-config'] as const,
 };
 
 export function useSessionQuery(enabled: boolean) {
@@ -43,6 +44,15 @@ export function useLibraryQuery(filters: { type: MediaTypeFilter; sort: LibraryS
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     staleTime: 30_000,
+  });
+}
+
+export function usePushConfigQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.pushConfig,
+    queryFn: api.pushConfig,
+    enabled,
+    staleTime: 60 * 60_000,
   });
 }
 

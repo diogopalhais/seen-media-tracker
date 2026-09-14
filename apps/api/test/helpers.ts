@@ -11,6 +11,8 @@ import {
   type ProviderSeasonDetails,
   type ProviderTitleDetails,
 } from '../src/services/metadata/provider.js';
+import type { EpisodeNotifier } from '../src/services/notifier.js';
+import type { Pusher, PushOutcome } from '../src/services/push.js';
 import type { AppEnv } from '../src/types.js';
 
 export const OWNER_PASSWORD = 'correct horse battery staple';
@@ -320,8 +322,29 @@ export class StubProvider implements MetadataProvider {
   }
 }
 
+/** Records every payload; endpoints listed in `gone` are reported as unsubscribed. */
+export class FakePusher implements Pusher {
+  sent: { endpoint: string; payload: Record<string, unknown> }[] = [];
+  gone = new Set<string>();
+  failing = false;
+
+  async send(sub: { endpoint: string }, payload: string): Promise<PushOutcome> {
+    if (this.gone.has(sub.endpoint)) return 'gone';
+    if (this.failing) return 'failed';
+    this.sent.push({
+      endpoint: sub.endpoint,
+      payload: JSON.parse(payload) as Record<string, unknown>,
+    });
+    return 'ok';
+  }
+}
+
+export const VAPID_PUBLIC_KEY_FOR_TESTS = 'BTestPublicKey';
+
 export interface TestContext {
   app: Hono<AppEnv>;
+  notifier: EpisodeNotifier;
+  pusher: FakePusher;
   db: PgliteDb;
   provider: StubProvider;
   clock: Clock;
@@ -335,12 +358,17 @@ export interface TestContext {
 }
 
 export async function createTestContext(
-  options: { refresh?: Partial<import('../src/services/refresh.js').RefreshOptions> } = {},
+  options: {
+    refresh?: Partial<import('../src/services/refresh.js').RefreshOptions>;
+    /** Pass false to run with push disabled (no VAPID keys). */
+    push?: boolean;
+  } = {},
 ): Promise<TestContext> {
   const db = await createPgliteDb();
   const provider = new StubProvider();
   const clock = new Clock();
-  const app = createApp({
+  const pusher = new FakePusher();
+  const { app, notifier } = createApp({
     config: {
       OWNER_PASSWORD_HASH: await ownerHash(),
       CORS_ORIGINS: [ALLOWED_ORIGIN],
@@ -351,6 +379,7 @@ export async function createTestContext(
     logger: pino({ level: 'silent' }),
     now: clock.now,
     ...(options.refresh ? { refresh: options.refresh } : {}),
+    push: options.push === false ? null : { pusher, publicKey: VAPID_PUBLIC_KEY_FOR_TESTS },
   });
 
   const request: TestContext['request'] = (path, init = {}) => {
@@ -378,7 +407,7 @@ export async function createTestContext(
     return body.token;
   };
 
-  return { app, db, provider, clock, request, login, close: () => db.close() };
+  return { app, notifier, pusher, db, provider, clock, request, login, close: () => db.close() };
 }
 
 export const json = (res: Response): Promise<any> => res.json();

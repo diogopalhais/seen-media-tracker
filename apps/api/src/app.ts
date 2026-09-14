@@ -18,10 +18,13 @@ import { healthRoutes } from './routes/health.js';
 import { importRoutes } from './routes/import.js';
 import { libraryRoutes } from './routes/library.js';
 import { publicRoutes } from './routes/public.js';
+import { pushRoutes } from './routes/push.js';
 import { searchRoutes } from './routes/search.js';
 import { watchRoutes } from './routes/watches.js';
 import { LibraryRepository } from './services/library.js';
 import type { MetadataProvider } from './services/metadata/provider.js';
+import { EpisodeNotifier } from './services/notifier.js';
+import { type Pusher, PushRepository, PushService } from './services/push.js';
 import { type RefreshOptions, SnapshotRefresher } from './services/refresh.js';
 import { SessionService } from './services/sessions.js';
 import { SlidingWindow } from './services/sliding-window.js';
@@ -42,9 +45,17 @@ export interface AppDeps {
   startedAt?: number;
   /** Tuning for the lazy snapshot refresh of running series (tests shorten the budget). */
   refresh?: Partial<RefreshOptions>;
+  /** Web Push delivery; omit (or pass null) to run with notifications disabled. */
+  push?: { pusher: Pusher; publicKey: string } | null;
 }
 
-export function createApp(deps: AppDeps): Hono<AppEnv> {
+export interface AppBundle {
+  app: Hono<AppEnv>;
+  /** Hourly new-episode notifier; the server starts it, tests call `runOnce()`. */
+  notifier: EpisodeNotifier;
+}
+
+export function createApp(deps: AppDeps): AppBundle {
   const now = deps.now ?? (() => new Date());
   const nowMs = () => now().getTime();
   const sessions = new SessionService(deps.db, now);
@@ -55,6 +66,27 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     now,
     (err, itemId) => deps.logger.warn({ err, itemId }, 'snapshot refresh failed'),
     deps.refresh,
+  );
+  const pushRepo = new PushRepository(deps.db);
+  const pushService = new PushService(
+    pushRepo,
+    deps.push?.pusher ?? null,
+    deps.push?.publicKey ?? null,
+    deps.logger,
+  );
+  // The notifier refreshes the whole library of running series, not just a page's worth.
+  const notifier = new EpisodeNotifier(
+    library,
+    new SnapshotRefresher(
+      library,
+      deps.provider,
+      now,
+      (err, itemId) => deps.logger.warn({ err, itemId }, 'snapshot refresh failed'),
+      { ...deps.refresh, batch: 50, budgetMs: deps.refresh?.budgetMs ?? 20_000 },
+    ),
+    pushService,
+    now,
+    deps.logger,
   );
   const requireAuth = requireAuthFactory(sessions);
   const loginFailures = new SlidingWindow(LOGIN_FAILURE_LIMIT, LOGIN_FAILURE_WINDOW_MS, nowMs);
@@ -120,6 +152,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     libraryRoutes({ library, provider: deps.provider, requireAuth, now, refresher }),
   );
   app.route('/api/v1', importRoutes({ provider: deps.provider, library, requireAuth, now }));
+  app.route('/api/v1', pushRoutes({ service: pushService, repo: pushRepo, requireAuth, now }));
   app.route('/api/v1/public', publicRoutes({ library, now }));
 
   app.notFound((c) => sendError(c, ApiError.notFound('Route')));
@@ -148,5 +181,5 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     return sendError(c, new ApiError('internal_error', 'Something went wrong'));
   });
 
-  return app;
+  return { app, notifier };
 }

@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "WebWorker"],
+    "types": ["vite/client"],
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["src/sw.ts", "src/vite-env.d.ts"]
+}

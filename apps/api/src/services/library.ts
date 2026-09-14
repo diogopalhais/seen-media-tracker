@@ -1,5 +1,6 @@
 import {
   type AiredEpisode,
+  ANNOUNCE_WINDOW_DAYS,
   type EpisodeWatch,
   type LibraryItemDetail,
   type LibraryItemSummary,
@@ -277,6 +278,9 @@ export class LibraryRepository {
       nextEpisodeName: details.nextEpisodeToAir?.name ?? null,
       nextEpisodeAirDate: details.nextEpisodeToAir?.airDate ?? null,
       metadataRefreshedAt: now,
+      // A freshly added series' current last episode is old news to the owner: never announce it.
+      notifiedEpisodeSeason: details.lastEpisodeToAir?.seasonNumber ?? null,
+      notifiedEpisodeNumber: details.lastEpisodeToAir?.episodeNumber ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -603,6 +607,52 @@ export class LibraryRepository {
       RELEASES_LIMIT,
       0,
     );
+  }
+
+  /**
+   * Series whose last aired episode (within the announce window) differs from the last announced one.
+   * `unwatched` applies the release-alert rule so the caller can mark without notifying.
+   */
+  async pendingAnnouncements(
+    today: string,
+  ): Promise<{ id: string; title: string; episode: AiredEpisode; unwatched: boolean }[]> {
+    const rows = await this.db
+      .select({
+        id: mediaItems.id,
+        title: mediaItems.title,
+        season: mediaItems.lastEpisodeSeason,
+        episode: mediaItems.lastEpisodeNumber,
+        name: mediaItems.lastEpisodeName,
+        airDate: mediaItems.lastEpisodeAirDate,
+        unwatched: hasNewEpisode(today),
+      })
+      .from(mediaItems)
+      .where(
+        and(
+          hasActivity(),
+          eq(mediaItems.mediaType, 'tv'),
+          sql`${mediaItems.lastEpisodeAirDate} is not null`,
+          sql`${mediaItems.lastEpisodeAirDate} <= ${today}::date`,
+          sql`${mediaItems.lastEpisodeAirDate} >= (${today}::date - ${ANNOUNCE_WINDOW_DAYS}::int)`,
+          sql`(${mediaItems.notifiedEpisodeSeason} is distinct from ${mediaItems.lastEpisodeSeason}
+            or ${mediaItems.notifiedEpisodeNumber} is distinct from ${mediaItems.lastEpisodeNumber})`,
+        ),
+      )
+      .orderBy(asc(mediaItems.lastEpisodeAirDate), asc(mediaItems.id));
+    return rows.flatMap((r) => {
+      const episode = episodeRef(r.season, r.episode, r.name, r.airDate);
+      return episode ? [{ id: r.id, title: r.title, episode, unwatched: r.unwatched }] : [];
+    });
+  }
+
+  async markAnnounced(itemId: string, episode: AiredEpisode): Promise<void> {
+    await this.db
+      .update(mediaItems)
+      .set({
+        notifiedEpisodeSeason: episode.seasonNumber,
+        notifiedEpisodeNumber: episode.episodeNumber,
+      })
+      .where(eq(mediaItems.id, itemId));
   }
 
   /** Running series in the library whose snapshot has not been refreshed since `before`. */

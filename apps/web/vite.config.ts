@@ -16,8 +16,6 @@ function inlineScriptHashes(html: string): string[] {
   return hashes;
 }
 
-const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 /** Cloudflare `_headers`: strict CSP that only allows connecting to the configured API origin. */
 function cloudflareHeaders(apiOrigin: string): Plugin {
   return {
@@ -118,45 +116,12 @@ export default defineConfig(({ mode }) => {
             },
           ],
         },
-        workbox: {
+        // Our own worker (src/sw.ts): same caching rules as the generated one, plus Web Push handlers.
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.ts',
+        injectManifest: {
           globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2,webmanifest}'],
-          navigateFallback: 'index.html',
-          navigateFallbackDenylist: [/^\/api\//],
-          cleanupOutdatedCaches: true,
-          clientsClaim: true,
-          skipWaiting: false,
-          runtimeCaching: [
-            {
-              urlPattern: /^https:\/\/image\.tmdb\.org\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'tmdb-images',
-                expiration: {
-                  maxEntries: 500,
-                  maxAgeSeconds: 30 * 24 * 60 * 60,
-                  purgeOnQuotaError: true,
-                },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-            {
-              // Private library reads: network first, fall back to the last good response when offline.
-              // Auth and public routes are excluded; non-GET requests are never matched by runtime caching.
-              urlPattern: new RegExp(`^${escapeRegExp(apiBase)}/api/v1/(?!auth/|public/).*`),
-              handler: 'NetworkFirst',
-              method: 'GET',
-              options: {
-                cacheName: 'seen-api',
-                networkTimeoutSeconds: 10,
-                expiration: {
-                  maxEntries: 300,
-                  maxAgeSeconds: 7 * 24 * 60 * 60,
-                  purgeOnQuotaError: true,
-                },
-                cacheableResponse: { statuses: [200] },
-              },
-            },
-          ],
         },
         devOptions: { enabled: false },
       }),

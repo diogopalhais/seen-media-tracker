@@ -52,6 +52,9 @@ export const mediaItems = pgTable(
     nextEpisodeName: text('next_episode_name'),
     nextEpisodeAirDate: date('next_episode_air_date', { mode: 'string' }),
     metadataRefreshedAt: timestamp('metadata_refreshed_at', { withTimezone: true, mode: 'date' }),
+    // Last episode the notifier announced (or knew about when the item was created).
+    notifiedEpisodeSeason: integer('notified_episode_season'),
+    notifiedEpisodeNumber: integer('notified_episode_number'),
     ...timestamps,
   },
   (t) => [uniqueIndex('media_items_type_tmdb_uidx').on(t.mediaType, t.tmdbId)],
@@ -116,7 +119,25 @@ export const sessions = pgTable(
   (t) => [uniqueIndex('sessions_token_hash_uidx').on(t.tokenHash)],
 );
 
+/** Web Push subscriptions of the owner's devices. One row per endpoint. */
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    endpoint: text('endpoint').notNull(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true, mode: 'date' })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex('push_subscriptions_endpoint_uidx').on(t.endpoint)],
+);
+
 export type MediaItemRow = typeof mediaItems.$inferSelect;
+export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type WatchEntryRow = typeof watchEntries.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;
 export type EpisodeWatchRow = typeof episodeWatches.$inferSelect;

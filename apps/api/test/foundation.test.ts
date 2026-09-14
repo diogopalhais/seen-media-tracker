@@ -132,7 +132,7 @@ describe('api foundation', () => {
 
   it('reports degraded when the database is unavailable', async () => {
     const broken = await createPgliteDb();
-    const app = createApp({
+    const { app } = createApp({
       config: {
         OWNER_PASSWORD_HASH: await ownerHash(),
         CORS_ORIGINS: [ALLOWED_ORIGIN],

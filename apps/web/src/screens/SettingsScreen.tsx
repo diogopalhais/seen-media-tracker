@@ -10,6 +10,7 @@ import { TMDB_ATTRIBUTION, TMDB_SITE_BASE } from '@seen/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ImportTraktSheet } from '../components/ImportTraktSheet.js';
+import { NotificationsSettings } from '../components/NotificationsSettings.js';
 import { AlertDialog } from '../components/ui/AlertDialog.js';
 import { InsetGroupedList, Row } from '../components/ui/InsetGroupedList.js';
 import { Screen } from '../components/ui/NavBar.js';
@@ -106,6 +107,8 @@ export function SettingsScreen() {
           </li>
         </InsetGroupedList>
       )}
+
+      <NotificationsSettings />
 
       <InsetGroupedList
         header="Your data"

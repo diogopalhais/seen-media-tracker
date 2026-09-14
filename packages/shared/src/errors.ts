@@ -10,6 +10,7 @@ export const ApiErrorCodeSchema = z.enum([
   'rate_limited',
   'internal_error',
   'upstream_unavailable',
+  'push_disabled',
 ]);
 export type ApiErrorCode = z.infer<typeof ApiErrorCodeSchema>;
 
@@ -38,4 +39,5 @@ export const API_ERROR_STATUS: Record<ApiErrorCode, number> = {
   rate_limited: 429,
   internal_error: 500,
   upstream_unavailable: 502,
+  push_disabled: 503,
 };

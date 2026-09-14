@@ -29,6 +29,13 @@
       "when": 1789387081654,
       "tag": "0003_release_info",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789396978356,
+      "tag": "0004_push_subscriptions",
+      "breakpoints": true
     }
   ]
 }

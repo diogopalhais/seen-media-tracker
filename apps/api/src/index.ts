@@ -1,10 +1,11 @@
 import { serve } from '@hono/node-server';
 import { createApp } from './app.js';
-import { ConfigError, loadConfig } from './config.js';
+import { ConfigError, loadConfig, vapidConfig } from './config.js';
 import { createPostgresDb, runMigrations, waitForDatabase } from './db/client.js';
 import { createLogger } from './logger.js';
 import { CachedMetadataProvider } from './services/metadata/cached.js';
 import { TmdbProvider } from './services/metadata/tmdb.js';
+import { WebPushPusher } from './services/push.js';
 import { APP_VERSION } from './version.js';
 
 async function main(): Promise<void> {
@@ -29,7 +30,19 @@ async function main(): Promise<void> {
   const provider = new CachedMetadataProvider(
     new TmdbProvider({ token: config.TMDB_API_TOKEN, language: config.TMDB_LANGUAGE }),
   );
-  const app = createApp({ config, db: pg.db, provider, logger });
+  const vapid = vapidConfig(config);
+  const { app, notifier } = createApp({
+    config,
+    db: pg.db,
+    provider,
+    logger,
+    push: vapid ? { pusher: new WebPushPusher(vapid), publicKey: vapid.publicKey } : null,
+  });
+  logger.info(
+    { push: vapid !== null },
+    vapid ? 'push notifications enabled' : 'push notifications disabled (no VAPID keys)',
+  );
+  const stopNotifier = notifier.start();
 
   const server = serve({ fetch: app.fetch, port: config.PORT, hostname: '0.0.0.0' }, (info) => {
     logger.info({ port: info.port }, 'listening');
@@ -40,6 +53,7 @@ async function main(): Promise<void> {
     if (shuttingDown) return;
     shuttingDown = true;
     logger.info({ signal }, 'shutting down');
+    stopNotifier();
     const forceExit = setTimeout(() => {
       logger.error('forced exit after timeout');
       process.exit(1);

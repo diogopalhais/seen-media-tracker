@@ -57,6 +57,7 @@ Useful scripts:
 | `TMDB_LANGUAGE` | no (`en-US`) | Language for titles and overviews |
 | `PORT` | no (`3000`) | Listen port |
 | `LOG_LEVEL` | no (`info`) | pino level |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Optional, set all three or none. Enable Web Push new-episode notifications. Generate keys with `pnpm --filter @seen/api vapid`; the subject is `mailto:you@example.com` or your site URL. Treat the private key as a secret and back it up: rotating it silently disables every device until it re-enables notifications. |
 | `MIGRATIONS_DIR` | no | Override the migrations folder location |
 
 The API refuses to start with a clear message if any required variable is missing or malformed.
@@ -101,6 +102,10 @@ If a DNS record for the domain already exists (for example pointing at the API s
 - Variable: `VITE_API_BASE_URL` (e.g. `https://api.seen.<your-domain>`)
 
 Deep links fall back to `index.html` through `not_found_handling = "single-page-application"` in `wrangler.toml`, and the build emits `_headers` (CSP, security headers, `no-cache` for `index.html`/`sw.js`/manifest, immutable caching for hashed assets), which Workers static assets honour. The Worker also answers on `https://seen.<account>.workers.dev`, but the API only allows the custom domain origin, so use the custom domain for real sessions. `CORS_ORIGINS` on the API must include `https://seen.<your-domain>`.
+
+### New-episode notifications (Web Push)
+
+With the `VAPID_*` variables set, the API runs an hourly notifier that refreshes running series and sends one push per newly aired, unwatched episode to every device that turned on **Settings → Notifications → New episodes**. On iPhone the app must be installed to the Home Screen first. Run a single API replica: two instances would each announce. "Send a test notification" in Settings verifies the whole path.
 
 ### Rollback
 
@@ -187,6 +192,9 @@ All routes are under `/api/v1`; errors are `{ "error": { "code", "message", "det
 | GET | `/library?type=&sort=recent|title|rating&cursor=&limit=` | Bearer | Library grid data |
 | GET | `/library/:id` | Bearer | Item with full history |
 | GET | `/library/releases` | Bearer | Series with a new unwatched episode (last 30 days) or an upcoming one (next 14 days); refreshes stale snapshots of running series first |
+| GET | `/push/config` | Bearer | Whether Web Push is configured, and the VAPID public key |
+| PUT / DELETE | `/push/subscriptions` | Bearer | Register or remove this device's push subscription |
+| POST | `/push/test` | Bearer | Send a test notification to every registered device |
 | GET | `/public/recent?limit=` | – | Public feed |
 | GET | `/health` (root) | – | `ok` / `degraded` |
 

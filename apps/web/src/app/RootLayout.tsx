@@ -6,6 +6,7 @@ import { TabBar, type TabDefinition } from '../components/ui/TabBar.js';
 import { useIsAuthenticated } from '../lib/auth.js';
 import { recordVisit } from '../lib/history-log.js';
 import { useOnline } from '../lib/online.js';
+import { syncPushSubscription } from '../lib/push.js';
 import { DiscoverScreen } from '../screens/DiscoverScreen.js';
 import { LibraryItemScreen } from '../screens/LibraryItemScreen.js';
 import { LibraryScreen } from '../screens/LibraryScreen.js';
@@ -111,6 +112,11 @@ export function RootLayout() {
   const online = useOnline();
   const activeTab = tabFor(location.pathname);
   const [lastLocations, setLastLocations] = useState<Record<string, Location>>({});
+
+  // Re-register this device's push subscription once per launch (idempotent on the server).
+  useEffect(() => {
+    void syncPushSubscription();
+  }, []);
 
   useEffect(() => {
     recordVisit(location.pathname + location.search);

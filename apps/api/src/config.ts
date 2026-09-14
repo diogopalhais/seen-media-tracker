@@ -75,9 +75,35 @@ export const EnvSchema = z.object({
   CORS_ORIGINS: originList,
   TRUST_PROXY: booleanFlag,
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
+  // Web Push is optional: leave all three unset to run without notifications.
+  VAPID_PUBLIC_KEY: z.string().trim().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().trim().min(1).optional(),
+  VAPID_SUBJECT: z
+    .string()
+    .trim()
+    .regex(/^(mailto:.+|https:\/\/.+)$/, 'VAPID_SUBJECT must be a mailto: address or an https URL')
+    .optional(),
 });
 
 export type Config = z.infer<typeof EnvSchema>;
+
+export interface VapidConfig {
+  publicKey: string;
+  privateKey: string;
+  subject: string;
+}
+
+/** The VAPID trio, or null when push is not configured. Partial configuration is rejected by `loadConfig`. */
+export function vapidConfig(
+  config: Pick<Config, 'VAPID_PUBLIC_KEY' | 'VAPID_PRIVATE_KEY' | 'VAPID_SUBJECT'>,
+): VapidConfig | null {
+  if (!config.VAPID_PUBLIC_KEY || !config.VAPID_PRIVATE_KEY || !config.VAPID_SUBJECT) return null;
+  return {
+    publicKey: config.VAPID_PUBLIC_KEY,
+    privateKey: config.VAPID_PRIVATE_KEY,
+    subject: config.VAPID_SUBJECT,
+  };
+}
 
 export class ConfigError extends Error {
   constructor(readonly problems: string[]) {
@@ -92,6 +118,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new ConfigError(
       parsed.error.issues.map((i) => `${i.path.join('.') || 'env'}: ${i.message}`),
     );
+  }
+  const vapid = [
+    parsed.data.VAPID_PUBLIC_KEY,
+    parsed.data.VAPID_PRIVATE_KEY,
+    parsed.data.VAPID_SUBJECT,
+  ];
+  const setCount = vapid.filter(Boolean).length;
+  if (setCount > 0 && setCount < 3) {
+    throw new ConfigError([
+      'VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT must be set together (generate keys with `pnpm --filter @seen/api vapid`) or all left unset to disable push',
+    ]);
   }
   return parsed.data;
 }
