@@ -1,4 +1,4 @@
-import { CaretRight, CheckCircle } from '@phosphor-icons/react';
+import { CheckCircle } from '@phosphor-icons/react';
 import type { SearchResult } from '@seen/shared';
 import { Link } from 'react-router';
 import { Poster } from './Media.js';
@@ -16,14 +16,11 @@ export interface PosterRowProps {
   basePath?: string;
 }
 
-/** Shelf header: bold title with a chevron and a muted one-line subtitle. */
+/** Shelf header: bold title and a muted one-line subtitle. Plain text, not a link. */
 export function ShelfHeader({ title, subtitle }: { title: string; subtitle?: string | undefined }) {
   return (
     <div className="safe-x mb-3 flex flex-col">
-      <span className="display inline-flex items-center gap-1 text-title3 text-label">
-        {title}
-        <CaretRight weight="bold" className="size-4 text-label-tertiary" aria-hidden="true" />
-      </span>
+      <span className="display text-title3 text-label">{title}</span>
       {subtitle && <span className="text-footnote text-label-secondary">{subtitle}</span>}
     </div>
   );

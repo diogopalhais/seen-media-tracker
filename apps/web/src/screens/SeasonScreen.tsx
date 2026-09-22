@@ -158,7 +158,11 @@ export function SeasonScreen() {
                   .filter(Boolean)
                   .join(' · ')}
               </p>
-              <SeasonProgressHeader watched={watchedCount} total={aired.length} />
+              <SeasonProgressHeader
+                watched={watchedCount}
+                total={aired.length}
+                unaired={(s?.episodes.length ?? 0) - aired.length}
+              />
             </div>
           </div>
           {s.overview && (

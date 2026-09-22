@@ -9,6 +9,27 @@ import {
 import { RatingSchema } from './rating.js';
 import { EpisodeWatchSchema, WatchEntrySchema } from './watch.js';
 
+export const EpisodePointerSchema = z.object({
+  seasonNumber: z.number().int().min(0),
+  episodeNumber: z.number().int().min(0),
+});
+
+export const SeriesStatusSchema = z.enum(['unwatched', 'behind', 'up_to_date', 'watched']);
+
+/**
+ * Where the owner stands with a series, computed by the API from the stored season list, the
+ * episode ticks and the logs. `behind` is only meaningful when `exact` is true.
+ */
+export const LibraryProgressSchema = z.object({
+  status: SeriesStatusSchema,
+  aired: z.number().int().min(0),
+  total: z.number().int().min(0),
+  behind: z.number().int().min(0),
+  exact: z.boolean(),
+  nextUp: EpisodePointerSchema.nullable(),
+});
+export type LibraryProgress = z.infer<typeof LibraryProgressSchema>;
+
 export const LibrarySortSchema = z.enum(['recent', 'title', 'rating']);
 export type LibrarySort = z.infer<typeof LibrarySortSchema>;
 
@@ -52,8 +73,12 @@ export const LibraryItemSummarySchema = z.object({
   watchCount: z.number().int().min(0),
   episodesWatched: z.number().int().min(0),
   lastSeason: z.number().int().nullable(),
-  /** Null for movies and for series with nothing new or upcoming. */
+  /** Null for movies, for muted series and for series with nothing new or upcoming. */
   release: ReleaseAlertSchema.nullable(),
+  /** Series only; null for movies and when the snapshot has no season list yet. */
+  progress: LibraryProgressSchema.nullable(),
+  /** True when the owner stopped following the series: no alerts, no notifications. */
+  muted: z.boolean(),
 });
 export type LibraryItemSummary = z.infer<typeof LibraryItemSummarySchema>;
 
@@ -76,5 +101,12 @@ export const LibraryItemDetailSchema = z.object({
   entries: z.array(WatchEntrySchema),
   /** Season-episode ordered. */
   episodeWatches: z.array(EpisodeWatchSchema),
+  muted: z.boolean(),
 });
 export type LibraryItemDetail = z.infer<typeof LibraryItemDetailSchema>;
+
+/** Owner settings on a library item. */
+export const UpdateLibraryItemRequestSchema = z.object({
+  muted: z.boolean(),
+});
+export type UpdateLibraryItemRequest = z.infer<typeof UpdateLibraryItemRequestSchema>;

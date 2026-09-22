@@ -3,6 +3,7 @@ import type { WatchEntry } from '@seen/shared';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { CastRow } from '../components/CastRow.js';
+import { FollowRow } from '../components/FollowRow.js';
 import { ContinueWatchingCard } from '../components/Progress.js';
 import { SeasonsList } from '../components/SeasonsList.js';
 import { TitleDetailsList } from '../components/TitleDetailsList.js';
@@ -19,6 +20,7 @@ import { ApiError } from '../lib/api.js';
 import { formatDate, seasonLabel } from '../lib/format.js';
 import { useBack } from '../lib/nav.js';
 import { useDeleteWatchMutation, useLibraryItemQuery, useTitleQuery } from '../lib/queries.js';
+import { useSeriesStanding } from '../lib/seriesProgress.js';
 import { LogWatchSheet, type SheetMode } from './LogWatchSheet.js';
 
 export function LibraryItemScreen() {
@@ -39,6 +41,14 @@ export function LibraryItemScreen() {
   // Seasons, cast and companies are not part of the snapshot; fetch them live and degrade silently
   // to the stored status and episodes if TMDB is unavailable.
   const title = useTitleQuery(item?.mediaType, item?.tmdbId);
+  const standing = useSeriesStanding({
+    tmdbId: item?.tmdbId,
+    seasons: item?.mediaType === 'tv' ? title.data?.seasons : null,
+    detail,
+    status: title.data?.status ?? item?.status,
+    lastEpisodeToAir: title.data?.lastEpisodeToAir ?? item?.lastEpisodeToAir,
+    nextEpisodeToAir: title.data?.nextEpisodeToAir ?? item?.nextEpisodeToAir,
+  });
 
   const confirmDelete = async () => {
     if (!pendingDelete || !item) return;
@@ -126,6 +136,7 @@ export function LibraryItemScreen() {
               numberOfSeasons: item.numberOfSeasons,
             }}
             detail={detail}
+            series={standing ? { standing, basePath: `/library/${item.id}` } : null}
           />
         }
       />
@@ -136,17 +147,21 @@ export function LibraryItemScreen() {
         </Banner>
       )}
 
-      {item.mediaType === 'tv' && title.data?.seasons && (
+      {item.mediaType === 'tv' && title.data?.seasons && standing && (
         <>
           <ContinueWatchingCard
             tmdbId={item.tmdbId}
-            seasons={title.data.seasons}
-            watches={detail.episodeWatches}
+            standing={standing}
             basePath={`/library/${item.id}`}
           />
-          <SeasonsList seasons={title.data.seasons} basePath={`/library/${item.id}`} />
+          <SeasonsList
+            seasons={title.data.seasons}
+            basePath={`/library/${item.id}`}
+            progress={standing.progress}
+          />
         </>
       )}
+      {item.mediaType === 'tv' && <FollowRow detail={detail} />}
 
       <InsetGroupedList header="History" className="mt-3">
         {detail.entries.map((entry) => (

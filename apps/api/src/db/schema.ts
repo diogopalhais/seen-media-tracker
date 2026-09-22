@@ -1,4 +1,4 @@
-import type { Genre } from '@seen/shared';
+import type { Genre, Season } from '@seen/shared';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -39,6 +39,8 @@ export const mediaItems = pgTable(
     genres: jsonb('genres').$type<Genre[]>().notNull().default([]),
     runtimeMinutes: integer('runtime_minutes'),
     numberOfSeasons: integer('number_of_seasons'),
+    // Season list (episode counts and premieres) so progress can be derived without the provider.
+    seasons: jsonb('seasons').$type<Season[]>(),
     tmdbVoteAverage: real('tmdb_vote_average'),
     tmdbVoteCount: integer('tmdb_vote_count'),
     // Broadcast state used for release alerts; refreshed lazily for running series.
@@ -55,6 +57,8 @@ export const mediaItems = pgTable(
     // Last episode the notifier announced (or knew about when the item was created).
     notifiedEpisodeSeason: integer('notified_episode_season'),
     notifiedEpisodeNumber: integer('notified_episode_number'),
+    // Set when the owner stopped following the series: no release alerts, no notifications.
+    mutedAt: timestamp('muted_at', { withTimezone: true, mode: 'date' }),
     ...timestamps,
   },
   (t) => [uniqueIndex('media_items_type_tmdb_uidx').on(t.mediaType, t.tmdbId)],

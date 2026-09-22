@@ -172,6 +172,78 @@ describe('release alerts', () => {
     await logWatch(ctx, token, { mediaType: 'movie', tmdbId: 438631, watchedOn: '2026-09-09' });
     expect((await json(await releases())).items).toEqual([]);
   });
+});
+
+describe('series progress in summaries', () => {
+  it('says how many aired episodes are left and which is next', async () => {
+    // Severance: S1 has 9, S2 has 10 listed of which 9 aired. Ticked S1 fully and S2 E1-E7.
+    await markEpisodes(SEVERANCE, [
+      ...Array.from({ length: 9 }, (_, i) => ({ seasonNumber: 1, episodeNumber: i + 1 })),
+      ...Array.from({ length: 7 }, (_, i) => ({ seasonNumber: 2, episodeNumber: i + 1 })),
+    ]);
+    const body = await json(await list());
+    expect(body.items[0].progress).toEqual({
+      status: 'behind',
+      aired: 18,
+      total: 19,
+      behind: 2,
+      exact: true,
+      nextUp: { seasonNumber: 2, episodeNumber: 8 },
+    });
+    expect(body.items[0].muted).toBe(false);
+  });
+
+  it('is up to date once every aired episode is seen, and counts logs as watched', async () => {
+    await logWatch(ctx, token, { mediaType: 'tv', tmdbId: SEVERANCE, watchedOn: '2026-09-06' });
+    const body = await json(await list());
+    expect(body.items[0].progress).toMatchObject({ status: 'up_to_date', behind: 0, nextUp: null });
+  });
+
+  it('is null for movies', async () => {
+    await logWatch(ctx, token, { mediaType: 'movie', tmdbId: 438631, watchedOn: '2026-09-01' });
+    expect((await json(await list())).items[0].progress).toBeNull();
+  });
+});
+
+describe('muting a series', () => {
+  const mute = (id: string, muted: boolean) =>
+    ctx.request(`/api/v1/library/${id}`, { method: 'PATCH', token, json: { muted } });
+
+  it('hides the series from alerts and the releases shelf until it is followed again', async () => {
+    const { body } = await logWatch(ctx, token, {
+      mediaType: 'tv',
+      tmdbId: SEVERANCE,
+      watchedOn: '2026-09-01',
+      season: 1,
+    });
+    expect((await json(await list())).items[0].release?.kind).toBe('new_episode');
+
+    const res = await mute(body.item.id, true);
+    expect(res.status).toBe(200);
+    const detail = await json(res);
+    expect(detail.muted).toBe(true);
+    const listed = (await json(await list())).items[0];
+    expect(listed.muted).toBe(true);
+    expect(listed.release).toBeNull();
+    // Progress is still reported: the owner may come back to it.
+    expect(listed.progress.status).toBe('behind');
+    expect((await json(await releases())).items).toEqual([]);
+
+    await mute(body.item.id, false);
+    expect((await json(await list())).items[0]).toMatchObject({ muted: false });
+    expect((await json(await list())).items[0].release?.kind).toBe('new_episode');
+  });
+
+  it('rejects muting a movie and unknown ids', async () => {
+    const { body } = await logWatch(ctx, token, {
+      mediaType: 'movie',
+      tmdbId: 438631,
+      watchedOn: '2026-09-01',
+    });
+    expect((await mute(body.item.id, true)).status).toBe(400);
+    expect((await mute('00000000-0000-0000-0000-000000000000', true)).status).toBe(404);
+    expect((await mute(body.item.id, 'yes' as unknown as boolean)).status).toBe(400);
+  });
 
   it('requires authentication', async () => {
     expect((await ctx.request('/api/v1/library/releases')).status).toBe(401);

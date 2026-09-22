@@ -139,6 +139,31 @@ describe('new-episode notifier', () => {
     expect(ctx.pusher.sent).toHaveLength(1);
   });
 
+  it('marks the episode of a muted series without notifying', async () => {
+    await subscribe(sub(1));
+    const { body } = await logWatch(ctx, token, {
+      mediaType: 'tv',
+      tmdbId: SEVERANCE,
+      watchedOn: '2026-09-01',
+      season: 1,
+    });
+    await ctx.request(`/api/v1/library/${body.item.id}`, {
+      method: 'PATCH',
+      token,
+      json: { muted: true },
+    });
+    await behindByOne();
+    expect((await ctx.notifier.runOnce()).announced).toBe(0);
+    expect(ctx.pusher.sent).toHaveLength(0);
+    // Following again does not replay the episode that arrived while muted.
+    await ctx.request(`/api/v1/library/${body.item.id}`, {
+      method: 'PATCH',
+      token,
+      json: { muted: false },
+    });
+    expect((await ctx.notifier.runOnce()).announced).toBe(0);
+  });
+
   it('marks a watched episode without notifying', async () => {
     await subscribe(sub(1));
     await ctx.request('/api/v1/watches/episodes', {

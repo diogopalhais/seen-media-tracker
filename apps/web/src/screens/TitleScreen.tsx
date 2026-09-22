@@ -2,6 +2,7 @@ import { ArrowSquareOut, SmileyMeh } from '@phosphor-icons/react';
 import { MediaTypeSchema } from '@seen/shared';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { CastRow } from '../components/CastRow.js';
+import { FollowRow } from '../components/FollowRow.js';
 import { ContinueWatchingCard } from '../components/Progress.js';
 import { SeasonsList } from '../components/SeasonsList.js';
 import { TitleDetailsList } from '../components/TitleDetailsList.js';
@@ -15,6 +16,7 @@ import { WatchActions } from '../components/WatchActions.js';
 import { ApiError } from '../lib/api.js';
 import { useBack } from '../lib/nav.js';
 import { useLibraryItemQuery, useTitleQuery } from '../lib/queries.js';
+import { useSeriesStanding } from '../lib/seriesProgress.js';
 
 export function TitleScreen() {
   const params = useParams<{ mediaType: string; tmdbId: string }>();
@@ -27,6 +29,14 @@ export function TitleScreen() {
   const navigate = useNavigate();
   const query = useTitleQuery(valid ? mediaType.data : undefined, valid ? tmdbId : undefined);
   const libraryItem = useLibraryItemQuery(query.data?.libraryItemId ?? undefined);
+  const standing = useSeriesStanding({
+    tmdbId: query.data?.tmdbId,
+    seasons: query.data?.mediaType === 'tv' ? query.data.seasons : null,
+    detail: libraryItem.data,
+    status: query.data?.status,
+    lastEpisodeToAir: query.data?.lastEpisodeToAir,
+    nextEpisodeToAir: query.data?.nextEpisodeToAir,
+  });
 
   if (!valid || query.isError) {
     const notFound = !valid || (query.error instanceof ApiError && query.error.status === 404);
@@ -98,23 +108,28 @@ export function TitleScreen() {
             }}
             detail={libraryItem.data}
             loading={Boolean(t.libraryItemId) && libraryItem.isPending}
+            series={standing ? { standing, basePath: `${base}/tv/${t.tmdbId}` } : null}
           />
         }
       />
 
-      {t.mediaType === 'tv' && t.seasons && (
+      {t.mediaType === 'tv' && t.seasons && standing && (
         <>
           {libraryItem.data && (
             <ContinueWatchingCard
               tmdbId={t.tmdbId}
-              seasons={t.seasons}
-              watches={libraryItem.data.episodeWatches}
+              standing={standing}
               basePath={`${base}/tv/${t.tmdbId}`}
             />
           )}
-          <SeasonsList seasons={t.seasons} basePath={`${base}/tv/${t.tmdbId}`} />
+          <SeasonsList
+            seasons={t.seasons}
+            basePath={`${base}/tv/${t.tmdbId}`}
+            progress={standing.progress}
+          />
         </>
       )}
+      {t.mediaType === 'tv' && libraryItem.data && <FollowRow detail={libraryItem.data} />}
 
       <CastRow cast={t.cast} />
       <TitleDetailsList

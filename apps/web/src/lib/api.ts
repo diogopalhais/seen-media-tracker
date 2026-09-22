@@ -37,6 +37,7 @@ import {
   type TraktImportRecord,
   type TraktImportResult,
   TraktImportResultSchema,
+  type UpdateLibraryItemRequest,
   type UpdateWatchRequest,
   type WatchMutationResponse,
   WatchMutationResponseSchema,
@@ -190,6 +191,12 @@ export const api = {
   libraryReleases: () =>
     request<LibraryReleasesResponse>('/api/v1/library/releases', {
       schema: LibraryReleasesResponseSchema,
+    }),
+  updateLibraryItem: (id: string, body: UpdateLibraryItemRequest) =>
+    request<LibraryItemDetail>(`/api/v1/library/${id}`, {
+      method: 'PATCH',
+      body,
+      schema: LibraryItemDetailSchema,
     }),
 
   pushConfig: () => request<PushConfig>('/api/v1/push/config', { schema: PushConfigSchema }),

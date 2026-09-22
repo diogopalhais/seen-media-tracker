@@ -1,4 +1,5 @@
 import { FilmStrip, MagnifyingGlass, SlidersHorizontal } from '@phosphor-icons/react';
+import type { LibraryItemSummary } from '@seen/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
@@ -7,15 +8,42 @@ import {
   isDefaultFilters,
   type LibraryFilters,
 } from '../components/FilterSheet.js';
-import { ReleaseBadge, ReleasesShelf } from '../components/ReleasesShelf.js';
+import { episodesLeft, ReleaseBadge, ReleasesShelf } from '../components/ReleasesShelf.js';
 import { Banner } from '../components/ui/Banner.js';
 import { Button, Spinner } from '../components/ui/Button.js';
 import { EmptyState, Poster } from '../components/ui/Media.js';
 import { MediaCardText } from '../components/ui/MediaCardText.js';
 import { IconCircleButton, Screen } from '../components/ui/NavBar.js';
+import { ShelfHeader } from '../components/ui/PosterRow.js';
 import { PosterGridSkeleton } from '../components/ui/Skeleton.js';
 import { ApiError } from '../lib/api.js';
 import { useLibraryQuery, useLibraryReleasesQuery } from '../lib/queries.js';
+
+/**
+ * Grid meta for a series: "3 left" (aired, unwatched), "Up to date", "Watched", or the ticked
+ * episode count when the standing is unknown. Muted series say so instead of a count.
+ */
+export function seriesStanding(item: LibraryItemSummary): string | null {
+  if (item.mediaType !== 'tv') return null;
+  if (item.muted) return 'Not following';
+  const p = item.progress;
+  if (!p) return item.episodesWatched > 0 ? `${item.episodesWatched} eps` : null;
+  if (p.status === 'behind') return p.exact ? `${p.behind} left` : 'New episodes';
+  if (p.status === 'up_to_date') return 'Up to date';
+  if (p.status === 'watched') return 'Watched';
+  return null;
+}
+
+const GRID_TITLE: Record<LibraryFilters['type'], string> = {
+  all: 'Everything seen',
+  movie: 'Movies seen',
+  tv: 'Series seen',
+};
+const GRID_SUBTITLE: Record<LibraryFilters['sort'], string> = {
+  recent: 'Most recent first',
+  title: 'A to Z',
+  rating: 'Your highest rated first',
+};
 
 // Persisted for as long as the app stays open, across navigation into and out of items.
 let savedFilters: LibraryFilters = DEFAULT_FILTERS;
@@ -84,6 +112,9 @@ export function LibraryScreen() {
 
       {!active && releases.data && <ReleasesShelf items={releases.data.items} />}
 
+      {items.length > 0 && (
+        <ShelfHeader title={GRID_TITLE[filters.type]} subtitle={GRID_SUBTITLE[filters.sort]} />
+      )}
       <div className="safe-x pt-1">
         {query.isPending ? (
           <PosterGridSkeleton />
@@ -143,14 +174,16 @@ export function LibraryScreen() {
                       alt={item.title}
                       className="shadow-[var(--shadow-poster)]"
                     />
-                    {item.release?.kind === 'new_episode' && <ReleaseBadge kind="new_episode" />}
+                    {item.release?.kind === 'new_episode' && (
+                      <ReleaseBadge kind="new_episode" left={episodesLeft(item)} />
+                    )}
                   </div>
                   <MediaCardText
                     title={item.title}
                     meta={[
                       item.releaseYear ?? null,
                       item.watchCount > 1 ? `${item.watchCount}×` : null,
-                      item.episodesWatched > 0 ? `${item.episodesWatched} eps` : null,
+                      seriesStanding(item),
                     ]
                       .filter(Boolean)
                       .join(' · ')}

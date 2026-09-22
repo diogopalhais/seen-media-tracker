@@ -15,6 +15,7 @@ Planning artifacts (proposal, specs, design, tasks per change) live in `openspec
 - **Library**: poster grid of everything you have seen, filter by type, sort by recent, title or rating. Series you follow surface in a "New & upcoming" shelf when an episode aired that you have not watched, or airs within two weeks.
 - **One-tap watched**: "Mark Watched" logs today; rating is optional and inline. Log again for rewatches, with date, season and a private note.
 - **Episode tracking**: tick episodes individually, "Watched up to here", mark a whole season, and a Continue Watching card that knows where you stopped. Unaired episodes cannot be marked.
+- **Where you stand**: for a series the Watched button reads "Continue S2 E5" when aired episodes are left, "Up to date" while you wait for the next one to air, and "Watched" only once the show is over. Season and whole-series logs count as watched episodes. Stop following a series you dropped and it leaves the shelf, loses its badge and never notifies again.
 - **Title pages**: poster hero, synopsis, genres, people's rating next to yours, cast shelf, and a details list with status and next episode, network, studios, director or creators.
 - **Discover**: trending this week, popular movies and popular series from TMDB, with a "seen" mark on what is already in your library.
 - **Search**: movies and series with library membership flags.
@@ -74,6 +75,7 @@ Useful scripts:
 | `pnpm test` | Vitest: shared unit tests, API integration tests (in-process PGlite), web component tests |
 | `pnpm build` | Builds shared, API bundle (`apps/api/dist`) and web (`apps/web/dist`) |
 | `pnpm --filter @seen/api db:generate` | Generate a new SQL migration after editing `apps/api/src/db/schema.ts` |
+| `pnpm --filter @seen/api backfill-seasons` | One-off after upgrading to the season-aware library: stores the season list on every series snapshot so "3 left" and "Up to date" show up immediately instead of after the lazy refresh |
 
 ## Configuration
 
@@ -231,7 +233,8 @@ All routes are under `/api/v1`; errors are `{ "error": { "code", "message", "det
 | DELETE | `/watches/:id` | Bearer | Delete a watch (removes the title when it was the last one) |
 | GET | `/library?type=&sort=recent|title|rating&cursor=&limit=` | Bearer | Library grid data |
 | GET | `/library/:id` | Bearer | Item with full history |
-| GET | `/library/releases` | Bearer | Series with a new unwatched episode (last 30 days) or an upcoming one (next 14 days); refreshes stale snapshots of running series first |
+| GET | `/library/releases` | Bearer | Series with a new unwatched episode (last 30 days) or an upcoming one (next 14 days), muted series excluded; refreshes stale snapshots of running series first |
+| PATCH | `/library/:id` | Bearer | Follow or mute a series `{ muted }`: muted series get no release alerts and no notifications |
 | GET | `/push/config` | Bearer | Whether Web Push is configured, and the VAPID public key |
 | PUT / DELETE | `/push/subscriptions` | Bearer | Register or remove this device's push subscription |
 | POST | `/push/test` | Bearer | Send a test notification to every registered device |

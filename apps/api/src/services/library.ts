@@ -1,11 +1,14 @@
 import {
   type AiredEpisode,
   ANNOUNCE_WINDOW_DAYS,
+  computeProgress,
   type EpisodeWatch,
+  isOngoingSeries,
   type LibraryItemDetail,
   type LibraryItemSummary,
   type LibraryListQuery,
   type LibraryMembership,
+  type LibraryProgress,
   type MediaItem,
   type MediaType,
   type MediaTypeFilter,
@@ -14,6 +17,7 @@ import {
   RELEASE_UPCOMING_WINDOW_DAYS,
   RELEASES_LIMIT,
   type ReleaseAlert,
+  type Season,
   tmdbBackdropUrl,
   tmdbPosterUrl,
   tmdbTitleUrl,
@@ -153,7 +157,8 @@ const lastSeason = () => sql<number | null>`(
  * owner neither ticked it nor logged that season (or the whole series) on or after its air date.
  */
 const hasNewEpisode = (today: string) => sql<boolean>`(
-  ${mediaItems.lastEpisodeAirDate} is not null
+  ${mediaItems.mutedAt} is null
+  and ${mediaItems.lastEpisodeAirDate} is not null
   and ${mediaItems.lastEpisodeAirDate} <= ${today}::date
   and ${mediaItems.lastEpisodeAirDate} >= (${today}::date - ${RELEASE_NEW_WINDOW_DAYS}::int)
   and not exists (
@@ -168,7 +173,8 @@ const hasNewEpisode = (today: string) => sql<boolean>`(
       and w.watched_on >= ${mediaItems.lastEpisodeAirDate}))`;
 
 const hasUpcomingEpisode = (today: string) => sql<boolean>`(
-  ${mediaItems.nextEpisodeAirDate} is not null
+  ${mediaItems.mutedAt} is null
+  and ${mediaItems.nextEpisodeAirDate} is not null
   and ${mediaItems.nextEpisodeAirDate} >= ${today}::date
   and ${mediaItems.nextEpisodeAirDate} <= (${today}::date + ${RELEASE_UPCOMING_WINDOW_DAYS}::int))`;
 
@@ -267,6 +273,7 @@ export class LibraryRepository {
       genres: details.genres,
       runtimeMinutes: details.runtimeMinutes,
       numberOfSeasons: details.numberOfSeasons,
+      seasons: details.seasons,
       tmdbVoteAverage: details.voteAverage,
       tmdbVoteCount: details.voteCount,
       status: details.status,
@@ -301,6 +308,7 @@ export class LibraryRepository {
           genres: values.genres,
           runtimeMinutes: values.runtimeMinutes,
           numberOfSeasons: values.numberOfSeasons,
+          seasons: values.seasons,
           tmdbVoteAverage: values.tmdbVoteAverage,
           tmdbVoteCount: values.tmdbVoteCount,
           status: values.status,
@@ -488,7 +496,86 @@ export class LibraryRepository {
       watchCount: entries.length,
       entries: entries.map(toWatchEntry),
       episodeWatches: await this.episodeWatchesFor(itemId),
+      muted: item.row.mutedAt !== null,
     };
+  }
+
+  /** Stops (or resumes) following a series: muted series get no release alerts and no notifications. */
+  async setMuted(itemId: string, muted: boolean, now: Date): Promise<boolean> {
+    const rows = await this.db
+      .update(mediaItems)
+      .set({ mutedAt: muted ? now : null, updatedAt: now })
+      .where(eq(mediaItems.id, itemId))
+      .returning({ id: mediaItems.id });
+    return rows.length > 0;
+  }
+
+  /**
+   * Progress of each series from its stored season list, the episode ticks and the logs. Two queries
+   * for the whole batch. Series without a season list (snapshots predating it) get null.
+   */
+  private async progressFor(
+    rows: {
+      id: string;
+      mediaType: MediaType;
+      seasons: Season[] | null;
+      status: string | null;
+      lastEpisodeSeason: number | null;
+      lastEpisodeNumber: number | null;
+      lastEpisodeAirDate: string | null;
+    }[],
+  ): Promise<Map<string, LibraryProgress>> {
+    const series = rows.filter((r) => r.mediaType === 'tv' && r.seasons);
+    const out = new Map<string, LibraryProgress>();
+    if (series.length === 0) return out;
+    const ids = series.map((r) => r.id);
+    const [ticks, logs] = await Promise.all([
+      this.db
+        .select({
+          itemId: episodeWatches.mediaItemId,
+          seasonNumber: episodeWatches.seasonNumber,
+          episodeNumber: episodeWatches.episodeNumber,
+          watchedOn: episodeWatches.watchedOn,
+        })
+        .from(episodeWatches)
+        .where(inArray(episodeWatches.mediaItemId, ids)),
+      this.db
+        .select({
+          itemId: watchEntries.mediaItemId,
+          season: watchEntries.season,
+          watchedOn: watchEntries.watchedOn,
+        })
+        .from(watchEntries)
+        .where(inArray(watchEntries.mediaItemId, ids)),
+    ]);
+    for (const r of series) {
+      const lastAired =
+        r.lastEpisodeSeason !== null && r.lastEpisodeNumber !== null
+          ? {
+              seasonNumber: r.lastEpisodeSeason,
+              episodeNumber: r.lastEpisodeNumber,
+              airDate: r.lastEpisodeAirDate,
+            }
+          : null;
+      const p = computeProgress(
+        r.seasons as Season[],
+        ticks.filter((t) => t.itemId === r.id),
+        {
+          lastAired,
+          logs: logs.filter((l) => l.itemId === r.id),
+          ongoing: r.status !== null && isOngoingSeries(r.status),
+        },
+      );
+      out.set(r.id, {
+        status: p.status,
+        aired: p.aired,
+        total: p.total,
+        behind: p.behind,
+        exact: p.exact,
+        nextUp: p.nextUp,
+      });
+    }
+    return out;
   }
 
   /** Shared select for library summaries: snapshot columns plus the correlated activity and alert columns. */
@@ -524,12 +611,16 @@ export class LibraryRepository {
         nextEpisodeNumber: mediaItems.nextEpisodeNumber,
         nextEpisodeName: mediaItems.nextEpisodeName,
         nextEpisodeAirDate: mediaItems.nextEpisodeAirDate,
+        seasons: mediaItems.seasons,
+        status: mediaItems.status,
+        mutedAt: mediaItems.mutedAt,
       })
       .from(mediaItems)
       .where(and(...conditions))
       .orderBy(...order)
       .limit(limit)
       .offset(offset);
+    const progress = await this.progressFor(rows);
 
     return rows.map((r) => {
       const last = episodeRef(
@@ -563,6 +654,8 @@ export class LibraryRepository {
         episodesWatched: r.episodesWatched,
         lastSeason: r.lastSeason,
         release,
+        progress: progress.get(r.id) ?? null,
+        muted: r.mutedAt !== null,
       };
     });
   }
@@ -598,7 +691,12 @@ export class LibraryRepository {
     const soon = hasUpcomingEpisode(today);
     return this.summaries(
       today,
-      [hasActivity(), eq(mediaItems.mediaType, 'tv'), sql`(${fresh} or ${soon})`],
+      [
+        hasActivity(),
+        eq(mediaItems.mediaType, 'tv'),
+        isNull(mediaItems.mutedAt),
+        sql`(${fresh} or ${soon})`,
+      ],
       [
         sql`case when ${fresh} then 0 else 1 end`,
         sql`case when ${fresh} then ${mediaItems.lastEpisodeAirDate} end desc nulls last`,
@@ -612,7 +710,8 @@ export class LibraryRepository {
 
   /**
    * Series whose last aired episode (within the announce window) differs from the last announced one.
-   * `unwatched` applies the release-alert rule so the caller can mark without notifying.
+   * `unwatched` applies the release-alert rule (false for muted series) so the caller can mark
+   * without notifying.
    */
   async pendingAnnouncements(
     today: string,
@@ -656,7 +755,10 @@ export class LibraryRepository {
       .where(eq(mediaItems.id, itemId));
   }
 
-  /** Running series in the library whose snapshot has not been refreshed since `before`. */
+  /**
+   * Running series in the library whose snapshot has not been refreshed since `before`, or that
+   * predate the stored season list (needed for progress) and so refresh regardless of age.
+   */
   async staleShows(before: Date, limit: number): Promise<MediaItemRow[]> {
     return this.db
       .select()
@@ -665,8 +767,13 @@ export class LibraryRepository {
         and(
           hasActivity(),
           eq(mediaItems.mediaType, 'tv'),
+          isNull(mediaItems.mutedAt),
           or(isNull(mediaItems.status), notInArray(mediaItems.status, ['Ended', 'Canceled'])),
-          or(isNull(mediaItems.metadataRefreshedAt), lt(mediaItems.metadataRefreshedAt, before)),
+          or(
+            isNull(mediaItems.metadataRefreshedAt),
+            lt(mediaItems.metadataRefreshedAt, before),
+            isNull(mediaItems.seasons),
+          ),
         ),
       )
       .orderBy(sql`${mediaItems.metadataRefreshedAt} asc nulls first`)

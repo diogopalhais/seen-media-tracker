@@ -12,7 +12,8 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "hash-password": "tsx scripts/hash-password.ts",
-    "vapid": "tsx scripts/vapid-keys.ts"
+    "vapid": "tsx scripts/vapid-keys.ts",
+    "backfill-seasons": "tsx --env-file-if-exists=.env scripts/backfill-seasons.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",

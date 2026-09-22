@@ -145,6 +145,16 @@ export function useUpdateWatchMutation() {
   });
 }
 
+/** Stop or resume following a series (release alerts and notifications). */
+export function useSetMutedMutation() {
+  const invalidate = useInvalidateLibrary();
+  return useMutation({
+    mutationFn: ({ id, muted }: { id: string; muted: boolean }) =>
+      api.updateLibraryItem(id, { muted }),
+    onSuccess: (res) => invalidate(res.item),
+  });
+}
+
 export function useDeleteWatchMutation() {
   const invalidate = useInvalidateLibrary();
   return useMutation({
