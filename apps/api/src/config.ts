@@ -149,7 +149,11 @@ export class ConfigError extends Error {
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const parsed = EnvSchema.safeParse(env);
+  // Compose files pass unset optionals as empty strings (`${VAR:-}`); treat those as absent.
+  const cleaned = Object.fromEntries(
+    Object.entries(env).filter(([, v]) => v !== undefined && v.trim() !== ''),
+  );
+  const parsed = EnvSchema.safeParse(cleaned);
   if (!parsed.success) {
     throw new ConfigError(
       parsed.error.issues.map((i) => `${i.path.join('.') || 'env'}: ${i.message}`),

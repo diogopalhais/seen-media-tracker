@@ -26,6 +26,12 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      # Video games via IGDB (optional): both or none. Twitch developer console → Client ID + secret.
+      IGDB_CLIENT_ID: ${IGDB_CLIENT_ID:-}
+      IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET:-}
+      # Steam play-time sync (optional, needs IGDB): Web API key + the owner's 17-digit SteamID64.
+      STEAM_API_KEY: ${STEAM_API_KEY:-}
+      STEAM_ID: ${STEAM_ID:-}
     expose:
       - "3000"
     healthcheck:

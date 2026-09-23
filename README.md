@@ -114,7 +114,7 @@ The API refuses to start with a clear message if any required variable is missin
 
 1. In Coolify create a new **Application → Docker Compose** resource pointing at this repository (branch `main`, compose file `compose.yaml`).
 2. Set the environment variables in Coolify (they are interpolated into the compose file):
-   `POSTGRES_PASSWORD` (URL-safe, no `@ / : #`), `OWNER_PASSWORD_HASH` (the base64 line from `hash-password`; never the raw `$argon2id$` string), `TMDB_API_TOKEN`, `CORS_ORIGINS`, and optionally `POSTGRES_USER`, `POSTGRES_DB`, `TMDB_LANGUAGE`, `LOG_LEVEL`. `DATABASE_URL` is assembled inside the compose file from the `db` service name; `TRUST_PROXY=1` is already set.
+   `POSTGRES_PASSWORD` (URL-safe, no `@ / : #`), `OWNER_PASSWORD_HASH` (the base64 line from `hash-password`; never the raw `$argon2id$` string), `TMDB_API_TOKEN`, `CORS_ORIGINS`, and optionally `POSTGRES_USER`, `POSTGRES_DB`, `TMDB_LANGUAGE`, `LOG_LEVEL`, the `VAPID_*` trio, `IGDB_CLIENT_ID` + `IGDB_CLIENT_SECRET` for games, and `STEAM_API_KEY` + `STEAM_ID` for the Steam sync. `DATABASE_URL` is assembled inside the compose file from the `db` service name; `TRUST_PROXY=1` is already set.
 3. Attach the domain (e.g. `api.seen.<your-domain>`) to the `api` service on port `3000`. Coolify's Traefik proxy terminates TLS with Let's Encrypt.
 4. Deploy. Migrations run on start under an advisory lock; `GET /health` returns `{"status":"ok"}` when the database is reachable.
 5. Enable "deploy on push" (GitHub webhook) so `main` deploys automatically.

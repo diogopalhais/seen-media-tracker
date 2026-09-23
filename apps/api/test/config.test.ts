@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { ConfigError, decodeOwnerHash, loadConfig } from '../src/config.js';
+import {
+  ConfigError,
+  decodeOwnerHash,
+  igdbConfig,
+  loadConfig,
+  steamConfig,
+} from '../src/config.js';
 
 const HASH =
   '$argon2id$v=19$m=19456,t=2,p=1$qdlOOXR7WGVr72b/YJytDA$H7EcWVpDXrki5ak/9TA8WCpft9jS40jYUrDaqeEC7f8';
@@ -29,5 +35,31 @@ describe('OWNER_PASSWORD_HASH', () => {
 
   it('fails fast when required variables are missing', () => {
     expect(() => loadConfig({ OWNER_PASSWORD_HASH: HASH })).toThrow(/DATABASE_URL/);
+  });
+});
+
+describe('loadConfig optional integrations', () => {
+  const full = { ...base, OWNER_PASSWORD_HASH: HASH };
+
+  it('treats empty strings from compose defaults as unset', () => {
+    const config = loadConfig({
+      ...full,
+      IGDB_CLIENT_ID: '',
+      IGDB_CLIENT_SECRET: '',
+      STEAM_API_KEY: '',
+      STEAM_ID: '',
+    });
+    expect(igdbConfig(config)).toBeNull();
+    expect(steamConfig(config)).toBeNull();
+  });
+
+  it('rejects half-configured pairs and a malformed Steam id', () => {
+    expect(() => loadConfig({ ...full, IGDB_CLIENT_ID: 'a' })).toThrow(/IGDB_CLIENT_SECRET/);
+    expect(() => loadConfig({ ...full, STEAM_API_KEY: 'k' })).toThrow(/STEAM_ID/);
+    expect(() => loadConfig({ ...full, STEAM_API_KEY: 'k', STEAM_ID: 'wabisabi' })).toThrow(
+      /17-digit/,
+    );
+    const ok = loadConfig({ ...full, STEAM_API_KEY: 'k', STEAM_ID: '76561197991753462' });
+    expect(steamConfig(ok)).toEqual({ apiKey: 'k', steamId: '76561197991753462' });
   });
 });
