@@ -160,6 +160,26 @@ describe('Steam sync', () => {
     expect(feed.items.map((i: any) => i.title)).toEqual(['Hades', 'Elden Ring']);
   });
 
+  it('heals a sync that was interrupted after snapshotting but before recording', async () => {
+    ctx.steam.games = [game(HADES_APP, 'Hades', 3000, 120, '2026-09-20T20:00:00.000Z')];
+    // Simulate the interrupted run: a snapshot exists, nothing was linked or recorded.
+    await ctx.db.db.insert(steamGames).values({
+      appId: HADES_APP,
+      name: 'Hades',
+      minutesTotal: 3000,
+      minutesRecent: 120,
+      lastPlayedAt: new Date('2026-09-20T20:00:00.000Z'),
+      syncedAt: new Date('2026-09-23T10:00:00.000Z'),
+    });
+    expect(await json(await sync())).toMatchObject({ sessions: 1, linked: 1 });
+    const item = (await json(await list())).items[0];
+    expect(item).toMatchObject({
+      title: 'Hades',
+      minutesPlayed: 3000,
+      lastWatchedOn: '2026-09-20',
+    });
+  });
+
   it('files history with no last-played date under the day Steam started counting', async () => {
     ctx.steam.games = [game(HADES_APP, 'Hades', 111, 0, null)];
     await sync();

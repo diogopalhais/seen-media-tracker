@@ -353,16 +353,21 @@ export class SteamSync {
       await this.deps.repo.upsertSnapshot(game, now);
       if (game.minutesTotal === 0) continue;
 
-      // Minutes to record now: growth since the last snapshot, or the whole total for a new game.
-      const delta = previous ? game.minutesTotal - previous.minutesTotal : game.minutesTotal;
+      // Minutes not yet turned into sessions. Comparing against what was recorded, rather than the
+      // previous snapshot, means a sync interrupted halfway (a redeploy, say) heals on the next run.
+      const recorded = previous?.minutesRecorded ?? 0;
+      const delta = game.minutesTotal - recorded;
       if (delta <= 0) continue;
 
       const row = (await this.deps.repo.byAppId(game.appId)) as SteamGameRow;
       const itemId = row.mediaItemId ?? (await this.linkGame(row, now, result));
       if (!itemId) continue;
-      const playedOn = previous
-        ? today
-        : (game.lastPlayedAt?.toISOString().slice(0, 10) ?? STEAM_PLAYTIME_EPOCH);
+      // Growth on a game already recorded happened since the last sync; a game with nothing recorded
+      // yet is history, filed on its last-played day.
+      const playedOn =
+        recorded > 0
+          ? today
+          : (game.lastPlayedAt?.toISOString().slice(0, 10) ?? STEAM_PLAYTIME_EPOCH);
       await this.deps.library.addPlaySession(
         itemId,
         { source: 'steam', playedOn, minutes: delta },
