@@ -77,4 +77,36 @@ describe('TitleDetailsList', () => {
     expect(screen.getByText('Director, Screenplay')).toBeInTheDocument();
     expect(screen.getByText('Legendary')).toBeInTheDocument();
   });
+
+  it('lists release date, platforms, developer and publisher for a game', () => {
+    render(
+      <TitleDetailsList
+        mediaType="game"
+        status="Released"
+        releaseDate="2020-09-17"
+        platforms={[
+          { tmdbId: 6, name: 'PC', logoUrl: null },
+          { tmdbId: 130, name: 'Switch', logoUrl: null },
+        ]}
+        developers={[{ tmdbId: 1, name: 'Supergiant Games', logoUrl: null }]}
+        publishers={[
+          { tmdbId: 1, name: 'Supergiant Games', logoUrl: null },
+          { tmdbId: 2, name: 'Private Division', logoUrl: null },
+        ]}
+        today="2026-09-23"
+      />,
+    );
+    expect(screen.getByText('Released')).toBeInTheDocument();
+    expect(screen.getByText(/2020/)).toBeInTheDocument();
+    expect(screen.getByText('Platforms')).toBeInTheDocument();
+    expect(screen.getByText('PC, Switch')).toBeInTheDocument();
+    expect(screen.getByText('Developer')).toBeInTheDocument();
+    expect(screen.getByText('Publishers')).toBeInTheDocument();
+    expect(screen.getByText('Supergiant Games, Private Division')).toBeInTheDocument();
+  });
+
+  it('labels an early access game with its status', () => {
+    render(<TitleDetailsList mediaType="game" status="Early Access" releaseDate="2026-03-01" />);
+    expect(screen.getByText(/^Early Access · /)).toBeInTheDocument();
+  });
 });

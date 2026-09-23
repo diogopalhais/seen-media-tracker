@@ -13,6 +13,7 @@ import {
 } from '../src/services/metadata/provider.js';
 import type { EpisodeNotifier } from '../src/services/notifier.js';
 import type { Pusher, PushOutcome } from '../src/services/push.js';
+import type { SteamOwnedGame, SteamPlayerSummary, SteamSource } from '../src/services/steam.js';
 import type { AppEnv } from '../src/types.js';
 
 export const OWNER_PASSWORD = 'correct horse battery staple';
@@ -39,6 +40,7 @@ export class Clock {
 
 /** Titles for which the provider reports nothing beyond the basics. */
 export const NO_ENRICHMENT = {
+  externalUrl: null,
   status: null,
   lastEpisodeToAir: null,
   nextEpisodeToAir: null,
@@ -46,7 +48,61 @@ export const NO_ENRICHMENT = {
   crew: [],
   networks: [],
   productionCompanies: [],
+  platforms: [],
+  developers: [],
+  publishers: [],
 } satisfies Partial<ProviderTitleDetails>;
+
+/** Games in the stub catalogue. Cover and screenshot paths are IGDB image ids. */
+export const GAMES: ProviderTitleDetails[] = [
+  {
+    ...NO_ENRICHMENT,
+    mediaType: 'game',
+    tmdbId: 113112,
+    externalUrl: 'https://www.igdb.com/games/hades--1',
+    title: 'Hades',
+    originalTitle: 'Hades',
+    releaseDate: '2020-09-17',
+    overview: 'Defy the god of the dead.',
+    posterPath: 'co2i2c',
+    backdropPath: 'sc7wq1',
+    genres: [{ id: 12, name: 'Role-playing (RPG)' }],
+    runtimeMinutes: null,
+    numberOfSeasons: null,
+    seasons: null,
+    voteAverage: 9.2,
+    voteCount: 1500,
+    status: 'Released',
+    platforms: [
+      { tmdbId: 6, name: 'PC', logoPath: null },
+      { tmdbId: 130, name: 'Switch', logoPath: 'pl6f' },
+    ],
+    developers: [{ tmdbId: 1000, name: 'Supergiant Games', logoPath: null }],
+    publishers: [{ tmdbId: 1000, name: 'Supergiant Games', logoPath: null }],
+  },
+  {
+    ...NO_ENRICHMENT,
+    mediaType: 'game',
+    tmdbId: 119133,
+    externalUrl: 'https://www.igdb.com/games/elden-ring',
+    title: 'Elden Ring',
+    originalTitle: 'Elden Ring',
+    releaseDate: '2022-02-25',
+    overview: 'Rise, Tarnished.',
+    posterPath: 'co4jni',
+    backdropPath: null,
+    genres: [{ id: 12, name: 'Role-playing (RPG)' }],
+    runtimeMinutes: null,
+    numberOfSeasons: null,
+    seasons: null,
+    voteAverage: 9.5,
+    voteCount: 4000,
+    status: 'Released',
+    platforms: [{ tmdbId: 6, name: 'PC', logoPath: null }],
+    developers: [{ tmdbId: 2000, name: 'FromSoftware', logoPath: null }],
+    publishers: [{ tmdbId: 2001, name: 'Bandai Namco', logoPath: null }],
+  },
+];
 
 export const MOVIES: ProviderTitleDetails[] = [
   {
@@ -84,6 +140,10 @@ export const MOVIES: ProviderTitleDetails[] = [
     ],
     networks: [],
     productionCompanies: [{ tmdbId: 923, name: 'Legendary Pictures', logoPath: '/leg.png' }],
+    externalUrl: null,
+    platforms: [],
+    developers: [],
+    publishers: [],
   },
   {
     mediaType: 'movie',
@@ -164,6 +224,10 @@ export const SHOWS: ProviderTitleDetails[] = [
     crew: [{ tmdbId: 2, name: 'Diane Ademu-John', role: 'Creator', profilePath: null }],
     networks: [{ tmdbId: 49, name: 'HBO', logoPath: '/hbo.png' }],
     productionCompanies: [{ tmdbId: 923, name: 'Legendary Television', logoPath: null }],
+    externalUrl: null,
+    platforms: [],
+    developers: [],
+    publishers: [],
   },
   {
     mediaType: 'tv',
@@ -216,10 +280,22 @@ export const SHOWS: ProviderTitleDetails[] = [
     crew: [{ tmdbId: 5, name: 'Dan Erickson', role: 'Creator', profilePath: null }],
     networks: [{ tmdbId: 2552, name: 'Apple TV+', logoPath: '/atv.png' }],
     productionCompanies: [{ tmdbId: 6, name: 'Red Hour Productions', logoPath: null }],
+    externalUrl: null,
+    platforms: [],
+    developers: [],
+    publishers: [],
   },
 ];
 
-const POPULARITY: Record<number, number> = { 438631: 120, 841: 30, 550: 80, 90228: 90, 95396: 200 };
+const POPULARITY: Record<number, number> = {
+  438631: 120,
+  841: 30,
+  550: 80,
+  90228: 90,
+  95396: 200,
+  113112: 1500,
+  119133: 4000,
+};
 
 function toResult(d: ProviderTitleDetails): ProviderSearchResult {
   return {
@@ -256,6 +332,38 @@ export class StubProvider implements MetadataProvider {
   async searchTv(query: string, page: number): Promise<ProviderSearchPage> {
     this.calls.push(`searchTv:${query}:${page}`);
     return this.search(SHOWS, query, page);
+  }
+
+  async searchGames(query: string, page: number): Promise<ProviderSearchPage> {
+    this.calls.push(`searchGames:${query}:${page}`);
+    return this.search(GAMES, query, page);
+  }
+
+  async gameDetails(id: number): Promise<ProviderTitleDetails> {
+    this.calls.push(`gameDetails:${id}`);
+    return this.details(GAMES, id);
+  }
+
+  async trendingGames(): Promise<ProviderSearchResult[]> {
+    this.calls.push('trendingGames');
+    if (this.unavailable) throw new ProviderError('unavailable', 'stub outage');
+    return GAMES.map(toResult);
+  }
+
+  async topGames(): Promise<ProviderSearchResult[]> {
+    this.calls.push('topGames');
+    if (this.unavailable) throw new ProviderError('unavailable', 'stub outage');
+    return GAMES.slice().reverse().map(toResult);
+  }
+
+  /** Steam app ids known to the stub: 1145360 → Hades, 1245620 → Elden Ring. */
+  async gamesBySteamAppIds(appIds: number[]): Promise<Map<number, number>> {
+    this.calls.push(`gamesBySteamAppIds:${appIds.join(',')}`);
+    if (this.unavailable) throw new ProviderError('unavailable', 'stub outage');
+    const known: Record<number, number> = { 1145360: 113112, 1245620: 119133 };
+    return new Map(
+      appIds.flatMap((id) => (known[id] ? [[id, known[id]] as [number, number]] : [])),
+    );
   }
 
   private details(pool: ProviderTitleDetails[], id: number): ProviderTitleDetails {
@@ -341,9 +449,31 @@ export class FakePusher implements Pusher {
 
 export const VAPID_PUBLIC_KEY_FOR_TESTS = 'BTestPublicKey';
 
+export const STEAM_ID_FOR_TESTS = '76561198000000001';
+
+/** Stand-in for the Steam Web API: tests set `games` and `summary` before each sync. */
+export class FakeSteam implements SteamSource {
+  games: SteamOwnedGame[] = [];
+  summary: SteamPlayerSummary | null = { personaName: 'diogo', nowPlaying: null };
+  unavailable = false;
+  calls = 0;
+
+  async ownedGames(): Promise<SteamOwnedGame[]> {
+    this.calls++;
+    if (this.unavailable) throw new ProviderError('unavailable', 'steam down');
+    return this.games.map((g) => ({ ...g }));
+  }
+
+  async playerSummary(): Promise<SteamPlayerSummary | null> {
+    if (this.unavailable) throw new ProviderError('unavailable', 'steam down');
+    return this.summary;
+  }
+}
+
 export interface TestContext {
   app: Hono<AppEnv>;
   notifier: EpisodeNotifier;
+  steam: FakeSteam;
   pusher: FakePusher;
   db: PgliteDb;
   provider: StubProvider;
@@ -362,12 +492,15 @@ export async function createTestContext(
     refresh?: Partial<import('../src/services/refresh.js').RefreshOptions>;
     /** Pass false to run with push disabled (no VAPID keys). */
     push?: boolean;
+    /** Pass false to run without a Steam account. */
+    steam?: boolean;
   } = {},
 ): Promise<TestContext> {
   const db = await createPgliteDb();
   const provider = new StubProvider();
   const clock = new Clock();
   const pusher = new FakePusher();
+  const steam = new FakeSteam();
   const { app, notifier } = createApp({
     config: {
       OWNER_PASSWORD_HASH: await ownerHash(),
@@ -380,6 +513,7 @@ export async function createTestContext(
     now: clock.now,
     ...(options.refresh ? { refresh: options.refresh } : {}),
     push: options.push === false ? null : { pusher, publicKey: VAPID_PUBLIC_KEY_FOR_TESTS },
+    steam: options.steam === false ? null : { source: steam, steamId: STEAM_ID_FOR_TESTS },
   });
 
   const request: TestContext['request'] = (path, init = {}) => {
@@ -407,7 +541,18 @@ export async function createTestContext(
     return body.token;
   };
 
-  return { app, notifier, pusher, db, provider, clock, request, login, close: () => db.close() };
+  return {
+    app,
+    notifier,
+    steam,
+    pusher,
+    db,
+    provider,
+    clock,
+    request,
+    login,
+    close: () => db.close(),
+  };
 }
 
 export const json = (res: Response): Promise<any> => res.json();

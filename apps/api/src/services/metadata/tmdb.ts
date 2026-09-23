@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import {
-  type MetadataProvider,
+  type FilmProvider,
   type ProviderCompany,
   type ProviderEpisodeRef,
   ProviderError,
@@ -252,6 +252,12 @@ const tvDetailsSchema = z.object({
     .default([]),
 });
 
+/** Fields that only games fill in. */
+const NOT_A_GAME: Pick<
+  ProviderTitleDetails,
+  'externalUrl' | 'platforms' | 'developers' | 'publishers'
+> = { externalUrl: null, platforms: [], developers: [], publishers: [] };
+
 export interface TmdbOptions {
   token: string;
   language: string;
@@ -259,7 +265,7 @@ export interface TmdbOptions {
   timeoutMs?: number;
 }
 
-export class TmdbProvider implements MetadataProvider {
+export class TmdbProvider implements FilmProvider {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
 
@@ -390,6 +396,7 @@ export class TmdbProvider implements MetadataProvider {
       crew: movieCrew(d.credits?.crew ?? []),
       networks: [],
       productionCompanies: d.production_companies.slice(0, COMPANY_LIMIT).map(toCompany),
+      ...NOT_A_GAME,
     };
   }
 
@@ -446,6 +453,7 @@ export class TmdbProvider implements MetadataProvider {
       })),
       networks: d.networks.map(toCompany),
       productionCompanies: d.production_companies.slice(0, COMPANY_LIMIT).map(toCompany),
+      ...NOT_A_GAME,
     };
   }
 

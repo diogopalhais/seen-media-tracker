@@ -2,6 +2,7 @@ import { type MediaType, RATING_MAX, type TmdbRating } from '@seen/shared';
 import { type ReactNode, useState } from 'react';
 import { cn } from '../lib/cn.js';
 import { formatRuntime, formatSeasons } from '../lib/format.js';
+import { mediaKind } from '../lib/mediaKinds.js';
 import { Backdrop, Poster } from './ui/Media.js';
 
 export interface TitleHeroProps {
@@ -17,6 +18,8 @@ export interface TitleHeroProps {
   overview: string;
   tmdbRating: TmdbRating;
   ownerRating: number | null;
+  /** Games: platforms, shown in the meta line where movies show runtime. */
+  platforms?: { name: string }[] | undefined;
   /** Pill actions rendered under the meta line. */
   actions?: ReactNode;
 }
@@ -31,8 +34,12 @@ export function TitleHero(p: TitleHeroProps) {
   const [expanded, setExpanded] = useState(false);
   const meta = [
     p.releaseYear,
-    p.mediaType === 'movie' ? formatRuntime(p.runtimeMinutes) : formatSeasons(p.numberOfSeasons),
-    p.mediaType === 'movie' ? 'Movie' : 'Series',
+    p.mediaType === 'movie'
+      ? formatRuntime(p.runtimeMinutes)
+      : p.mediaType === 'tv'
+        ? formatSeasons(p.numberOfSeasons)
+        : p.platforms?.map((x) => x.name).join(', '),
+    mediaKind(p.mediaType).label,
   ]
     .filter(Boolean)
     .join(' · ');

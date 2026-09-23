@@ -6,7 +6,7 @@ import type {
   WatchEntry,
   WatchMutationResponse,
 } from '@seen/shared';
-import { NOTE_MAX_LENGTH, todayLocalDateString } from '@seen/shared';
+import { NOTE_MAX_LENGTH, todayLocalDateString, watchVerb } from '@seen/shared';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Banner } from '../components/ui/Banner.js';
 import { Button } from '../components/ui/Button.js';
@@ -64,6 +64,7 @@ function initialState(mode: SheetMode): FormState {
 }
 
 export function LogWatchSheet({ open, onOpenChange, target, mode, onSaved }: LogWatchSheetProps) {
+  const verb = watchVerb(target.mediaType);
   const [form, setForm] = useState<FormState>(() => initialState(mode));
   const [initial, setInitial] = useState<FormState>(form);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -190,7 +191,11 @@ export function LogWatchSheet({ open, onOpenChange, target, mode, onSaved }: Log
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      title={mode.kind === 'create' ? 'Log Watch' : 'Edit Watch'}
+      title={
+        mode.kind === 'create'
+          ? `Log ${verb.past === 'Played' ? 'Play' : 'Watch'}`
+          : `Edit ${verb.past === 'Played' ? 'Play' : 'Watch'}`
+      }
       dirty={dirty && !pending}
       trailing={
         <Button
@@ -230,7 +235,7 @@ export function LogWatchSheet({ open, onOpenChange, target, mode, onSaved }: Log
         <div className="card flex flex-col px-4 py-1">
           <DateField
             id="watchedOn"
-            label="Date watched"
+            label={`Date ${verb.past.toLowerCase()}`}
             value={form.watchedOn}
             max={todayLocalDateString()}
             onChange={(v) => update('watchedOn', v)}

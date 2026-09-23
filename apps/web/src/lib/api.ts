@@ -32,6 +32,10 @@ import {
   type SessionResponse,
   SessionResponseSchema,
   type SetEpisodesWatchedRequest,
+  type SteamStatus,
+  SteamStatusSchema,
+  type SteamSyncResult,
+  SteamSyncResultSchema,
   type TitleDetails,
   TitleDetailsSchema,
   type TraktImportRecord,
@@ -197,6 +201,18 @@ export const api = {
       method: 'PATCH',
       body,
       schema: LibraryItemDetailSchema,
+    }),
+
+  steamStatus: () => request<SteamStatus>('/api/v1/steam/status', { schema: SteamStatusSchema }),
+  steamSync: () =>
+    request<SteamSyncResult>('/api/v1/steam/sync', {
+      method: 'POST',
+      schema: SteamSyncResultSchema,
+    }),
+  steamImport: () =>
+    request<SteamSyncResult>('/api/v1/steam/import', {
+      method: 'POST',
+      schema: SteamSyncResultSchema,
     }),
 
   pushConfig: () => request<PushConfig>('/api/v1/push/config', { schema: PushConfigSchema }),

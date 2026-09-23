@@ -18,6 +18,7 @@ const base: LibraryItemSummary = {
   lastWatchedOn: '2026-09-01',
   watchCount: 0,
   episodesWatched: 12,
+  minutesPlayed: 0,
   lastSeason: null,
   release: null,
   progress: null,

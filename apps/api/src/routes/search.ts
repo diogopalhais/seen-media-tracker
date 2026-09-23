@@ -1,5 +1,9 @@
 import {
   type DiscoverResponse,
+  igdbImageUrl,
+  mediaBackdropUrl,
+  mediaPosterUrl,
+  mediaTitleUrl,
   SEARCH_PAGE_SIZE,
   SearchQuerySchema,
   type SearchResponse,
@@ -8,13 +12,11 @@ import {
   SeasonParamsSchema,
   type TitleDetails,
   TitleParamsSchema,
-  tmdbBackdropUrl,
   tmdbLogoUrl,
   tmdbPersonUrl,
   tmdbPosterUrl,
   tmdbProfileUrl,
   tmdbStillUrl,
-  tmdbTitleUrl,
   toTmdbRating,
 } from '@seen/shared';
 import { Hono, type MiddlewareHandler } from 'hono';
@@ -61,6 +63,13 @@ const toCompany = (c: ProviderCompany) => ({
   logoUrl: tmdbLogoUrl(c.logoPath),
 });
 
+/** IGDB companies and platforms carry image ids rather than TMDB paths. */
+const toGameCompany = (c: ProviderCompany) => ({
+  tmdbId: c.tmdbId,
+  name: c.name,
+  logoUrl: igdbImageUrl(c.logoPath, 't_cover_big'),
+});
+
 const byPopularity = (a: ProviderSearchResult, b: ProviderSearchResult) =>
   b.popularity - a.popularity;
 
@@ -99,7 +108,7 @@ function toSearchResult(r: ProviderSearchResult, membership: Map<string, string>
     title: r.title,
     originalTitle: r.originalTitle,
     releaseYear: releaseYear(r.releaseDate),
-    posterUrl: tmdbPosterUrl(r.posterPath),
+    posterUrl: mediaPosterUrl(r.mediaType, r.posterPath),
     overview: r.overview,
     popularity: r.popularity,
     tmdbRating: toTmdbRating(r.voteAverage, r.voteCount),
@@ -123,13 +132,16 @@ export function searchRoutes(deps: SearchDeps): Hono<AppEnv> {
     const { q, type, page } = c.req.valid('query');
     let data: { results: ProviderSearchResult[]; hasMore: boolean };
     try {
+      // `all` covers movies and series; games rank on a different scale and stay a search of their own.
       data =
         type === 'all'
           ? await combinedPage(deps.provider, q, page)
           : singlePage(
               await (type === 'movie'
                 ? deps.provider.searchMovies(q, page)
-                : deps.provider.searchTv(q, page)),
+                : type === 'tv'
+                  ? deps.provider.searchTv(q, page)
+                  : deps.provider.searchGames(q, page)),
             );
     } catch (err) {
       mapProviderError(err);
@@ -150,14 +162,31 @@ export function searchRoutes(deps: SearchDeps): Hono<AppEnv> {
     } catch (err) {
       mapProviderError(err);
     }
+    // Games are optional (no IGDB credentials) and a second upstream: their rows degrade to empty
+    // instead of taking the whole screen down.
+    const gameLists = await Promise.all([
+      deps.provider.trendingGames().catch(() => [] as ProviderSearchResult[]),
+      deps.provider.topGames().catch(() => [] as ProviderSearchResult[]),
+    ]);
     const [trending, popularMovies, popularTv] = lists.map((l) =>
       l.slice(0, SEARCH_PAGE_SIZE),
     ) as typeof lists;
-    const membership = await deps.library.membership([...trending, ...popularMovies, ...popularTv]);
+    const [trendingGames, topGames] = gameLists.map((l) =>
+      l.slice(0, SEARCH_PAGE_SIZE),
+    ) as typeof gameLists;
+    const membership = await deps.library.membership([
+      ...trending,
+      ...popularMovies,
+      ...popularTv,
+      ...trendingGames,
+      ...topGames,
+    ]);
     const body: DiscoverResponse = {
       trending: trending.map((r) => toSearchResult(r, membership)),
       popularMovies: popularMovies.map((r) => toSearchResult(r, membership)),
       popularTv: popularTv.map((r) => toSearchResult(r, membership)),
+      trendingGames: trendingGames.map((r) => toSearchResult(r, membership)),
+      topGames: topGames.map((r) => toSearchResult(r, membership)),
     };
     return c.json(body, 200);
   });
@@ -220,14 +249,14 @@ export function searchRoutes(deps: SearchDeps): Hono<AppEnv> {
         releaseYear: releaseYear(details.releaseDate),
         releaseDate: details.releaseDate,
         overview: details.overview,
-        posterUrl: tmdbPosterUrl(details.posterPath),
-        backdropUrl: tmdbBackdropUrl(details.backdropPath),
+        posterUrl: mediaPosterUrl(mediaType, details.posterPath),
+        backdropUrl: mediaBackdropUrl(mediaType, details.backdropPath),
         genres: details.genres,
         runtimeMinutes: details.runtimeMinutes,
         numberOfSeasons: details.numberOfSeasons,
         seasons: details.seasons,
         tmdbRating: toTmdbRating(details.voteAverage, details.voteCount),
-        tmdbUrl: tmdbTitleUrl(mediaType, tmdbId),
+        tmdbUrl: mediaTitleUrl(mediaType, tmdbId, details.externalUrl),
         status: details.status,
         lastEpisodeToAir: details.lastEpisodeToAir,
         nextEpisodeToAir: details.nextEpisodeToAir,
@@ -235,6 +264,9 @@ export function searchRoutes(deps: SearchDeps): Hono<AppEnv> {
         crew: details.crew.map(toPerson),
         networks: details.networks.map(toCompany),
         productionCompanies: details.productionCompanies.map(toCompany),
+        platforms: details.platforms.map(toGameCompany),
+        developers: details.developers.map(toGameCompany),
+        publishers: details.publishers.map(toGameCompany),
         rating: membership.rating,
         inLibrary: membership.inLibrary,
         libraryItemId: membership.libraryItemId,

@@ -42,7 +42,10 @@ export interface ProviderEpisodeRef {
 
 export interface ProviderTitleDetails {
   mediaType: MediaType;
+  /** Provider id: TMDB for movies and series, IGDB for games. */
   tmdbId: number;
+  /** Provider page when it cannot be derived from the id (IGDB slugs); null for TMDB titles. */
+  externalUrl: string | null;
   title: string;
   originalTitle: string;
   releaseDate: string | null;
@@ -63,6 +66,10 @@ export interface ProviderTitleDetails {
   crew: ProviderPerson[];
   networks: ProviderCompany[];
   productionCompanies: ProviderCompany[];
+  /** Games only; empty for movies and series. */
+  platforms: ProviderCompany[];
+  developers: ProviderCompany[];
+  publishers: ProviderCompany[];
 }
 
 export interface ProviderEpisode {
@@ -101,8 +108,8 @@ export class ProviderError extends Error {
   }
 }
 
-/** Abstracts the metadata source so routes can be tested with a stub and the provider swapped later. */
-export interface MetadataProvider {
+/** Movies and TV series (TMDB). */
+export interface FilmProvider {
   searchMovies(query: string, page: number): Promise<ProviderSearchPage>;
   searchTv(query: string, page: number): Promise<ProviderSearchPage>;
   movieDetails(tmdbId: number): Promise<ProviderTitleDetails>;
@@ -114,6 +121,24 @@ export interface MetadataProvider {
   tvSeason(tmdbId: number, seasonNumber: number): Promise<ProviderSeasonDetails>;
 }
 
+/** Video games (IGDB). Every method throws `ProviderError('unavailable')` when games are not configured. */
+export interface GameProvider {
+  searchGames(query: string, page: number): Promise<ProviderSearchPage>;
+  gameDetails(igdbId: number): Promise<ProviderTitleDetails>;
+  /** Games people are playing right now. */
+  trendingGames(): Promise<ProviderSearchResult[]>;
+  /** Best rated games released in the last year. */
+  topGames(): Promise<ProviderSearchResult[]>;
+  /** IGDB ids for Steam app ids; apps IGDB does not know are absent from the map. */
+  gamesBySteamAppIds(appIds: number[]): Promise<Map<number, number>>;
+}
+
+/**
+ * Abstracts the metadata sources so routes can be tested with a stub. Movies and series come from
+ * one provider, games from another; `CompositeProvider` joins them.
+ */
+export interface MetadataProvider extends FilmProvider, GameProvider {}
+
 export function releaseYear(releaseDate: string | null): number | null {
   if (!releaseDate) return null;
   const year = Number(releaseDate.slice(0, 4));
@@ -121,5 +146,12 @@ export function releaseYear(releaseDate: string | null): number | null {
 }
 
 export function detailsFor(provider: MetadataProvider, mediaType: MediaType, tmdbId: number) {
-  return mediaType === 'movie' ? provider.movieDetails(tmdbId) : provider.tvDetails(tmdbId);
+  switch (mediaType) {
+    case 'movie':
+      return provider.movieDetails(tmdbId);
+    case 'tv':
+      return provider.tvDetails(tmdbId);
+    case 'game':
+      return provider.gameDetails(tmdbId);
+  }
 }

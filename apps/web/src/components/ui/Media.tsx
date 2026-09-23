@@ -1,7 +1,8 @@
-import { FilmSlate, ImageBroken, Star, Television, Users } from '@phosphor-icons/react';
+import { ImageBroken, Star, Users } from '@phosphor-icons/react';
 import { type MediaType, RATING_MAX, type TmdbRating as TmdbRatingValue } from '@seen/shared';
 import { useState } from 'react';
 import { cn } from '../../lib/cn.js';
+import { mediaKind } from '../../lib/mediaKinds.js';
 
 export function RatingBadge({
   rating,
@@ -43,6 +44,7 @@ export function RatingBadge({
   );
 }
 
+/** Inline "Movie" / "TV" / "Game" tag: glyph, word and the kind's accent. */
 export function MediaTypeBadge({
   mediaType,
   className,
@@ -50,16 +52,47 @@ export function MediaTypeBadge({
   mediaType: MediaType;
   className?: string;
 }) {
-  const Icon = mediaType === 'movie' ? FilmSlate : Television;
+  const kind = mediaKind(mediaType);
+  const Icon = kind.icon;
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-md border border-card-border bg-bg-grouped-secondary px-1.5 py-[2px] text-caption1 font-semibold uppercase tracking-[0.06em] text-label-secondary',
+        'inline-flex items-center gap-1 rounded-md border border-card-border bg-bg-grouped-secondary px-1.5 py-[2px] text-caption1 font-semibold uppercase tracking-[0.06em]',
+        kind.textClass,
         className,
       )}
     >
       <Icon weight="fill" className="size-3" aria-hidden="true" />
-      {mediaType === 'movie' ? 'Movie' : 'TV'}
+      {mediaType === 'tv' ? kind.short : kind.label}
+    </span>
+  );
+}
+
+/**
+ * Corner glyph for a poster in a mixed grid: the kind's icon on a dark glass disc, in its accent.
+ * Announces the kind to assistive tech; hidden where every poster is the same kind.
+ */
+export function MediaTypeGlyph({
+  mediaType,
+  className,
+}: {
+  mediaType: MediaType;
+  className?: string;
+}) {
+  const kind = mediaKind(mediaType);
+  const Icon = kind.icon;
+  return (
+    <span
+      role="img"
+      aria-label={kind.label}
+      data-kind={mediaType}
+      className={cn(
+        'absolute bottom-2 left-2 flex size-6 items-center justify-center rounded-full bg-black/55 shadow-sm ring-1 ring-white/10 backdrop-blur-md',
+        kind.textClass,
+        className,
+      )}
+    >
+      <Icon weight="fill" className="size-3.5" aria-hidden="true" />
     </span>
   );
 }

@@ -30,7 +30,9 @@ export const SearchResultSchema = z
     releaseYear: z.number().int().nullable(),
     posterUrl: z.url().nullable(),
     overview: z.string(),
+    /** Provider-specific rank signal, only comparable within one provider. */
     popularity: z.number(),
+    /** Community rating out of 10 with vote count (TMDB), or IGDB's blended rating rescaled to 10. */
     tmdbRating: TmdbRatingSchema,
   })
   .extend(LibraryMembershipSchema.shape);
@@ -48,10 +50,17 @@ export const TitleParamsSchema = z.object({
   tmdbId: z.coerce.number().int().positive(),
 });
 
-/** Browsing lists shown when no search is active. Each list holds at most 20 titles. */
+/**
+ * Browsing lists shown when no search is active. Each list holds at most 20 titles. The game lists
+ * are empty when games are not configured.
+ */
 export const DiscoverResponseSchema = z.object({
   trending: z.array(SearchResultSchema),
   popularMovies: z.array(SearchResultSchema),
   popularTv: z.array(SearchResultSchema),
+  /** Games people on IGDB are playing right now. */
+  trendingGames: z.array(SearchResultSchema),
+  /** Best rated games released in the last year, by the IGDB community and critics. */
+  topGames: z.array(SearchResultSchema),
 });
 export type DiscoverResponse = z.infer<typeof DiscoverResponseSchema>;

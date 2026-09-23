@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
-export const MediaTypeSchema = z.enum(['movie', 'tv']);
+export const MediaTypeSchema = z.enum(['movie', 'tv', 'game']);
 export type MediaType = z.infer<typeof MediaTypeSchema>;
 
 /** Media type filter accepted by list and search endpoints. */
-export const MediaTypeFilterSchema = z.enum(['all', 'movie', 'tv']);
+export const MediaTypeFilterSchema = z.enum(['all', 'movie', 'tv', 'game']);
 export type MediaTypeFilter = z.infer<typeof MediaTypeFilterSchema>;
 
 export const GenreSchema = z.object({
@@ -51,7 +51,10 @@ export const PersonCreditSchema = z.object({
 });
 export type PersonCredit = z.infer<typeof PersonCreditSchema>;
 
-/** A network or production company. Logos are provided but not shown yet (often dark on dark). */
+/**
+ * A network, production company, game studio or platform. `tmdbId` is the provider's id (IGDB for
+ * games). Logos are provided but not shown yet (often dark on dark).
+ */
 export const CompanySchema = z.object({
   tmdbId: z.number().int(),
   name: z.string(),
@@ -68,7 +71,7 @@ export const AiredEpisodeSchema = z.object({
 });
 export type AiredEpisode = z.infer<typeof AiredEpisodeSchema>;
 
-/** Provider status label, kept verbatim: "Returning Series", "Ended", "Canceled", "In Production", "Released", ... */
+/** Provider status label, kept verbatim: "Returning Series", "Ended", "Canceled", "In Production", "Released", "Early Access", ... */
 export const TitleStatusSchema = z.string();
 export const ENDED_STATUSES: readonly string[] = ['Ended', 'Canceled'];
 
@@ -78,6 +81,16 @@ export function isOngoingSeries(status: string | null | undefined): boolean {
 }
 
 export const IsoTimestampSchema = z.iso.datetime({ offset: false });
+
+/** Verb the owner uses for a media type: movies and series are watched, games are played. */
+export function watchVerb(mediaType: MediaType): {
+  past: 'Watched' | 'Played';
+  noun: 'watch' | 'play';
+} {
+  return mediaType === 'game'
+    ? { past: 'Played', noun: 'play' }
+    : { past: 'Watched', noun: 'watch' };
+}
 
 /** Snapshot of a title's metadata as stored in the library. */
 export const MediaItemSchema = z.object({
@@ -95,9 +108,10 @@ export const MediaItemSchema = z.object({
   runtimeMinutes: z.number().int().nullable(),
   numberOfSeasons: z.number().int().nullable(),
   tmdbRating: TmdbRatingSchema,
+  /** Page at the metadata provider: TMDB for movies and series, IGDB for games. */
   tmdbUrl: z.url(),
   status: TitleStatusSchema.nullable(),
-  /** Series only; null for movies or when unknown. */
+  /** Series only; null for movies, games or when unknown. */
   lastEpisodeToAir: AiredEpisodeSchema.nullable(),
   nextEpisodeToAir: AiredEpisodeSchema.nullable(),
   createdAt: IsoTimestampSchema,
@@ -138,9 +152,14 @@ export const TitleDetailsSchema = z
     cast: z.array(PersonCreditSchema),
     /** Directors and writers for movies; creators for series. */
     crew: z.array(PersonCreditSchema),
-    /** Series only (empty for movies). */
+    /** Series only (empty for movies and games). */
     networks: z.array(CompanySchema),
+    /** Movies and series; empty for games, which use developers and publishers. */
     productionCompanies: z.array(CompanySchema),
+    /** Games only (empty otherwise). */
+    platforms: z.array(CompanySchema),
+    developers: z.array(CompanySchema),
+    publishers: z.array(CompanySchema),
     /** Displayed rating when the title is already in the library. */
     rating: z.number().int().nullable(),
   })

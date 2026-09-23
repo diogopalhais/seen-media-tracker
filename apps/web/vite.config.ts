@@ -32,9 +32,9 @@ function cloudflareHeaders(apiOrigin: string): Plugin {
         "default-src 'self'",
         `script-src ${scriptSrc.join(' ')}`,
         "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data: blob: https://image.tmdb.org",
+        "img-src 'self' data: blob: https://image.tmdb.org https://images.igdb.com",
         // The service worker fetches posters with fetch(), which CSP governs under connect-src, not img-src.
-        `connect-src 'self' ${apiOrigin} https://image.tmdb.org`,
+        `connect-src 'self' ${apiOrigin} https://image.tmdb.org https://images.igdb.com`,
         "font-src 'self'",
         "manifest-src 'self'",
         "worker-src 'self'",

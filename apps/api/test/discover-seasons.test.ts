@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { ProviderError } from '../src/services/metadata/provider.js';
 import { createTestContext, json, logWatch, type TestContext } from './helpers.js';
 
 let ctx: TestContext;
@@ -50,7 +51,7 @@ describe('GET /api/v1/discover', () => {
     expect((await ctx.request('/api/v1/discover')).status).toBe(401);
   });
 
-  it('returns three lists with membership and ratings, and caches the provider calls', async () => {
+  it('returns the film lists with membership and ratings, plus two game lists', async () => {
     ctx.provider.calls = [];
     const first = await json(await ctx.request('/api/v1/discover', { token }));
     expect(first.trending.map((r: any) => r.mediaType)).toEqual(['tv', 'movie', 'tv']);
@@ -62,10 +63,33 @@ describe('GET /api/v1/discover', () => {
       tmdbRating: { average: 7.8 },
     });
     expect(first.popularTv[0]).toMatchObject({ inLibrary: false, libraryItemId: null });
+    expect(first.trendingGames.map((r: any) => r.title)).toEqual(['Hades', 'Elden Ring']);
+    expect(first.topGames[0]).toMatchObject({
+      mediaType: 'game',
+      title: 'Elden Ring',
+      posterUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/co4jni.jpg',
+      tmdbRating: { average: 9.5, count: 4000 },
+    });
     // The route itself calls the stub directly; caching lives in CachedMetadataProvider, covered below.
     expect(
       ctx.provider.calls.filter((c) => c.startsWith('trending') || c.startsWith('popular')),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
+    expect(ctx.provider.calls).toContain('topGames');
+  });
+
+  it('serves empty game lists when only the game provider is down', async () => {
+    const original = ctx.provider.trendingGames.bind(ctx.provider);
+    ctx.provider.trendingGames = async () => {
+      throw new ProviderError('unavailable', 'igdb down');
+    };
+    try {
+      const body = await json(await ctx.request('/api/v1/discover', { token }));
+      expect(body.trending).toHaveLength(3);
+      expect(body.trendingGames).toEqual([]);
+      expect(body.topGames).toHaveLength(2);
+    } finally {
+      ctx.provider.trendingGames = original;
+    }
   });
 
   it('maps provider outages to 502', async () => {

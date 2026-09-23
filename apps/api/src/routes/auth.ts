@@ -1,5 +1,10 @@
 import { verify } from '@node-rs/argon2';
-import { LoginRequestSchema, type LoginResponse, type SessionResponse } from '@seen/shared';
+import {
+  type Features,
+  LoginRequestSchema,
+  type LoginResponse,
+  type SessionResponse,
+} from '@seen/shared';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { ApiError } from '../errors.js';
 import { rateLimitedError } from '../middleware/rate-limit.js';
@@ -13,6 +18,8 @@ export interface AuthDeps {
   sessions: SessionService;
   loginFailures: SlidingWindow;
   requireAuth: MiddlewareHandler<AppEnv>;
+  /** Reported with the session so the web app can hide what this deployment cannot do. */
+  features: Features;
 }
 
 export function authRoutes(deps: AuthDeps): Hono<AppEnv> {
@@ -48,6 +55,7 @@ export function authRoutes(deps: AuthDeps): Hono<AppEnv> {
     const body: SessionResponse = {
       authenticated: true,
       expiresAt: c.get('session').expiresAt.toISOString(),
+      features: deps.features,
     };
     return c.json(body, 200);
   });

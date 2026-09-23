@@ -1,5 +1,5 @@
 import { FilmStrip, MagnifyingGlass, SlidersHorizontal } from '@phosphor-icons/react';
-import type { LibraryItemSummary } from '@seen/shared';
+import { formatPlaytime, type LibraryItemSummary } from '@seen/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
@@ -8,22 +8,26 @@ import {
   isDefaultFilters,
   type LibraryFilters,
 } from '../components/FilterSheet.js';
+import { MediaTypeChips } from '../components/MediaTypeChips.js';
 import { episodesLeft, ReleaseBadge, ReleasesShelf } from '../components/ReleasesShelf.js';
 import { Banner } from '../components/ui/Banner.js';
 import { Button, Spinner } from '../components/ui/Button.js';
-import { EmptyState, Poster } from '../components/ui/Media.js';
+import { EmptyState, MediaTypeGlyph, Poster } from '../components/ui/Media.js';
 import { MediaCardText } from '../components/ui/MediaCardText.js';
 import { IconCircleButton, Screen } from '../components/ui/NavBar.js';
 import { ShelfHeader } from '../components/ui/PosterRow.js';
 import { PosterGridSkeleton } from '../components/ui/Skeleton.js';
 import { ApiError } from '../lib/api.js';
-import { useLibraryQuery, useLibraryReleasesQuery } from '../lib/queries.js';
+import { libraryTitle, MEDIA_KINDS } from '../lib/mediaKinds.js';
+import { useGamesEnabled, useLibraryQuery, useLibraryReleasesQuery } from '../lib/queries.js';
 
 /**
  * Grid meta for a series: "3 left" (aired, unwatched), "Up to date", "Watched", or the ticked
  * episode count when the standing is unknown. Muted series say so instead of a count.
  */
 export function seriesStanding(item: LibraryItemSummary): string | null {
+  if (item.mediaType === 'game')
+    return item.minutesPlayed > 0 ? `${formatPlaytime(item.minutesPlayed)} played` : null;
   if (item.mediaType !== 'tv') return null;
   if (item.muted) return 'Not following';
   const p = item.progress;
@@ -34,11 +38,6 @@ export function seriesStanding(item: LibraryItemSummary): string | null {
   return null;
 }
 
-const GRID_TITLE: Record<LibraryFilters['type'], string> = {
-  all: 'Everything seen',
-  movie: 'Movies seen',
-  tv: 'Series seen',
-};
 const GRID_SUBTITLE: Record<LibraryFilters['sort'], string> = {
   recent: 'Most recent first',
   title: 'A to Z',
@@ -54,6 +53,7 @@ export function LibraryScreen() {
   const navigate = useNavigate();
   const query = useLibraryQuery(filters);
   const releases = useLibraryReleasesQuery();
+  const games = useGamesEnabled();
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -89,13 +89,13 @@ export function LibraryScreen() {
       large
       trailing={
         <IconCircleButton
-          aria-label={active ? 'Filter and sort (active)' : 'Filter and sort'}
+          aria-label={filters.sort !== DEFAULT_FILTERS.sort ? 'Sort (active)' : 'Sort'}
           aria-haspopup="dialog"
           onClick={() => setFilterOpen(true)}
           className="relative"
         >
           <SlidersHorizontal weight="bold" className="size-5" aria-hidden="true" />
-          {active && (
+          {filters.sort !== DEFAULT_FILTERS.sort && (
             <span
               aria-hidden="true"
               className="absolute right-1 top-1 size-2 rounded-full bg-tint ring-2 ring-bg-grouped"
@@ -104,16 +104,26 @@ export function LibraryScreen() {
         </IconCircleButton>
       }
     >
+      <MediaTypeChips
+        value={filters.type}
+        onChange={(type) => setFilters((f) => ({ ...f, type }))}
+        features={{ games }}
+        className="mb-3"
+      />
+
       {errorMessage && items.length > 0 && (
         <Banner tone="error" onRetry={() => void query.refetch()}>
           {errorMessage}
         </Banner>
       )}
 
-      {!active && releases.data && <ReleasesShelf items={releases.data.items} />}
+      {/* Episode shelves belong to series: shown for All and for the TV filter. */}
+      {(filters.type === 'all' || filters.type === 'tv') && releases.data && (
+        <ReleasesShelf items={releases.data.items} />
+      )}
 
       {items.length > 0 && (
-        <ShelfHeader title={GRID_TITLE[filters.type]} subtitle={GRID_SUBTITLE[filters.sort]} />
+        <ShelfHeader title={libraryTitle(filters.type)} subtitle={GRID_SUBTITLE[filters.sort]} />
       )}
       <div className="safe-x pt-1">
         {query.isPending ? (
@@ -133,16 +143,12 @@ export function LibraryScreen() {
           <EmptyState
             icon={<FilmStrip />}
             title={
-              filters.type === 'all'
-                ? 'Nothing seen yet'
-                : filters.type === 'movie'
-                  ? 'No movies yet'
-                  : 'No TV series yet'
+              filters.type === 'all' ? 'Nothing seen yet' : MEDIA_KINDS[filters.type].emptyTitle
             }
             message={
-              active
-                ? 'Nothing matches the current filter. Adjust it from the top-right button.'
-                : 'Find a movie or series and log your first watch.'
+              filters.type !== 'all'
+                ? `Nothing of this kind yet. Pick another chip above, or search for a ${MEDIA_KINDS[filters.type].label.toLowerCase()} to log.`
+                : 'Find a movie, series or game and log your first watch.'
             }
             action={
               active ? (
@@ -177,6 +183,7 @@ export function LibraryScreen() {
                     {item.release?.kind === 'new_episode' && (
                       <ReleaseBadge kind="new_episode" left={episodesLeft(item)} />
                     )}
+                    {filters.type === 'all' && <MediaTypeGlyph mediaType={item.mediaType} />}
                   </div>
                   <MediaCardText
                     title={item.title}

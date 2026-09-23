@@ -16,6 +16,10 @@ export interface TitleDetailsListProps {
   nextEpisodeToAir?: AiredEpisode | null | undefined;
   networks?: Company[] | undefined;
   productionCompanies?: Company[] | undefined;
+  /** Games only. */
+  platforms?: Company[] | undefined;
+  developers?: Company[] | undefined;
+  publishers?: Company[] | undefined;
   crew?: PersonCredit[] | undefined;
   releaseDate?: string | null | undefined;
   /** Injected by tests; defaults to the device's local date. */
@@ -87,6 +91,29 @@ export function buildDetailRows(p: TitleDetailsListProps): DetailRow[] {
       label: 'Status',
       value: p.releaseDate ? `${status} · ${formatDate(p.releaseDate)}` : status,
     });
+  } else if (p.mediaType === 'game' && p.releaseDate) {
+    rows.push({ key: 'released', label: 'Released', value: formatDate(p.releaseDate) });
+  }
+  if (p.platforms && p.platforms.length > 0) {
+    rows.push({
+      key: 'platforms',
+      label: p.platforms.length > 1 ? 'Platforms' : 'Platform',
+      value: p.platforms.map((x) => x.name).join(', '),
+    });
+  }
+  if (p.developers && p.developers.length > 0) {
+    rows.push({
+      key: 'developer',
+      label: p.developers.length > 1 ? 'Developers' : 'Developer',
+      value: p.developers.map((c) => c.name).join(', '),
+    });
+  }
+  if (p.publishers && p.publishers.length > 0) {
+    rows.push({
+      key: 'publisher',
+      label: p.publishers.length > 1 ? 'Publishers' : 'Publisher',
+      value: p.publishers.map((c) => c.name).join(', '),
+    });
   }
   if (p.networks && p.networks.length > 0) {
     rows.push({
@@ -106,7 +133,7 @@ export function buildDetailRows(p: TitleDetailsListProps): DetailRow[] {
   return rows;
 }
 
-/** Status and next episode, network, studio, director or creator, as an inset list of label/value rows. */
+/** Status and next episode, network, studio, director or creator, platforms and game studios, as an inset list of label/value rows. */
 export function TitleDetailsList(p: TitleDetailsListProps) {
   const rows = buildDetailRows(p);
   if (rows.length === 0) return null;

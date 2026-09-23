@@ -1,3 +1,4 @@
+import type { Features } from '@seen/shared';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { cors } from 'hono/cors';
@@ -20,6 +21,7 @@ import { libraryRoutes } from './routes/library.js';
 import { publicRoutes } from './routes/public.js';
 import { pushRoutes } from './routes/push.js';
 import { searchRoutes } from './routes/search.js';
+import { steamRoutes } from './routes/steam.js';
 import { watchRoutes } from './routes/watches.js';
 import { LibraryRepository } from './services/library.js';
 import type { MetadataProvider } from './services/metadata/provider.js';
@@ -28,6 +30,7 @@ import { type Pusher, PushRepository, PushService } from './services/push.js';
 import { type RefreshOptions, SnapshotRefresher } from './services/refresh.js';
 import { SessionService } from './services/sessions.js';
 import { SlidingWindow } from './services/sliding-window.js';
+import { SteamRepository, type SteamSource, SteamSync } from './services/steam.js';
 import type { AppEnv } from './types.js';
 
 export const BODY_LIMIT_BYTES = 100 * 1024;
@@ -40,6 +43,8 @@ export interface AppDeps {
   config: Pick<Config, 'OWNER_PASSWORD_HASH' | 'CORS_ORIGINS' | 'TRUST_PROXY'>;
   db: Db;
   provider: MetadataProvider;
+  /** Optional capabilities reported to the web app; games default to enabled (tests use a stub). */
+  features?: Features;
   logger: Logger;
   now?: () => Date;
   startedAt?: number;
@@ -47,12 +52,16 @@ export interface AppDeps {
   refresh?: Partial<RefreshOptions>;
   /** Web Push delivery; omit (or pass null) to run with notifications disabled. */
   push?: { pusher: Pusher; publicKey: string } | null;
+  /** The owner's Steam account; omit (or pass null) to run without the Steam sync. */
+  steam?: { source: SteamSource; steamId: string } | null;
 }
 
 export interface AppBundle {
   app: Hono<AppEnv>;
   /** Hourly new-episode notifier; the server starts it, tests call `runOnce()`. */
   notifier: EpisodeNotifier;
+  /** Hourly Steam play-time sync; null when Steam is not configured. */
+  steamSync: SteamSync | null;
 }
 
 export function createApp(deps: AppDeps): AppBundle {
@@ -88,6 +97,17 @@ export function createApp(deps: AppDeps): AppBundle {
     now,
     deps.logger,
   );
+  const steamSync = deps.steam
+    ? new SteamSync({
+        source: deps.steam.source,
+        steamId: deps.steam.steamId,
+        repo: new SteamRepository(deps.db),
+        library,
+        provider: deps.provider,
+        now,
+        logger: deps.logger,
+      })
+    : null;
   const requireAuth = requireAuthFactory(sessions);
   const loginFailures = new SlidingWindow(LOGIN_FAILURE_LIMIT, LOGIN_FAILURE_WINDOW_MS, nowMs);
   const publicWindow = new SlidingWindow(PUBLIC_RATE_LIMIT, PUBLIC_RATE_WINDOW_MS, nowMs);
@@ -143,6 +163,7 @@ export function createApp(deps: AppDeps): AppBundle {
       sessions,
       loginFailures,
       requireAuth,
+      features: deps.features ?? { games: true, steam: steamSync !== null },
     }),
   );
   app.route('/api/v1', searchRoutes({ provider: deps.provider, library, requireAuth }));
@@ -153,6 +174,7 @@ export function createApp(deps: AppDeps): AppBundle {
   );
   app.route('/api/v1', importRoutes({ provider: deps.provider, library, requireAuth, now }));
   app.route('/api/v1', pushRoutes({ service: pushService, repo: pushRepo, requireAuth, now }));
+  app.route('/api/v1', steamRoutes({ sync: steamSync, requireAuth }));
   app.route('/api/v1/public', publicRoutes({ library, now }));
 
   app.notFound((c) => sendError(c, ApiError.notFound('Route')));
@@ -181,5 +203,5 @@ export function createApp(deps: AppDeps): AppBundle {
     return sendError(c, new ApiError('internal_error', 'Something went wrong'));
   });
 
-  return { app, notifier };
+  return { app, notifier, steamSync };
 }

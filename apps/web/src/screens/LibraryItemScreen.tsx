@@ -1,5 +1,5 @@
 import { ArrowSquareOut, PencilSimple, Trash } from '@phosphor-icons/react';
-import type { WatchEntry } from '@seen/shared';
+import { formatPlaytime, todayLocalDateString, type WatchEntry } from '@seen/shared';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { CastRow } from '../components/CastRow.js';
@@ -17,7 +17,7 @@ import { Screen } from '../components/ui/NavBar.js';
 import { ListSkeleton, Skeleton } from '../components/ui/Skeleton.js';
 import { WatchActions } from '../components/WatchActions.js';
 import { ApiError } from '../lib/api.js';
-import { formatDate, seasonLabel } from '../lib/format.js';
+import { formatDate, formatRelativeDate, seasonLabel } from '../lib/format.js';
 import { useBack } from '../lib/nav.js';
 import { useDeleteWatchMutation, useLibraryItemQuery, useTitleQuery } from '../lib/queries.js';
 import { useSeriesStanding } from '../lib/seriesProgress.js';
@@ -125,6 +125,7 @@ export function LibraryItemScreen() {
         overview={item.overview}
         tmdbRating={item.tmdbRating}
         ownerRating={detail.rating}
+        platforms={title.data?.platforms}
         actions={
           <WatchActions
             target={{
@@ -163,46 +164,79 @@ export function LibraryItemScreen() {
       )}
       {item.mediaType === 'tv' && <FollowRow detail={detail} />}
 
-      <InsetGroupedList header="History" className="mt-3">
-        {detail.entries.map((entry) => (
-          <li key={entry.id}>
-            <div className="flex min-h-[3.25rem] items-center gap-1 pl-4 pr-2 py-1">
-              <div className="flex min-w-0 flex-1 flex-col py-1.5">
-                <span className="flex flex-wrap items-center gap-2 text-body font-medium">
-                  <time dateTime={entry.watchedOn}>{formatDate(entry.watchedOn)}</time>
-                  {item.mediaType === 'tv' && entry.season !== null && (
-                    <span className="text-footnote text-label-secondary">
-                      {seasonLabel(entry.season)}
+      {detail.plays.length > 0 && (
+        <InsetGroupedList
+          header="Play time"
+          className="mt-3"
+          footer={`${formatPlaytime(detail.plays.reduce((n, p) => n + p.minutes, 0))} in total${detail.steam ? ` · ${formatPlaytime(detail.steam.minutesTotal)} on Steam` : ''}`}
+        >
+          {detail.plays.slice(0, 10).map((play) => (
+            <li key={play.id}>
+              <div className="flex min-h-[2.75rem] items-center gap-2 px-4 py-2">
+                <time dateTime={play.playedOn} className="flex-1 text-body text-label">
+                  {formatDate(play.playedOn)}
+                </time>
+                <span className="text-body tabular-nums text-label-secondary">
+                  {formatPlaytime(play.minutes)}
+                </span>
+                <span className="text-caption1 uppercase tracking-[0.05em] text-label-tertiary">
+                  {play.source}
+                </span>
+              </div>
+            </li>
+          ))}
+          {detail.plays.length > 10 && (
+            <li>
+              <p className="m-0 px-4 py-2 text-footnote text-label-secondary">
+                and {detail.plays.length - 10} more days
+              </p>
+            </li>
+          )}
+        </InsetGroupedList>
+      )}
+
+      {detail.entries.length > 0 && (
+        <InsetGroupedList header="History" className="mt-3">
+          {detail.entries.map((entry) => (
+            <li key={entry.id}>
+              <div className="flex min-h-[3.25rem] items-center gap-1 pl-4 pr-2 py-1">
+                <div className="flex min-w-0 flex-1 flex-col py-1.5">
+                  <span className="flex flex-wrap items-center gap-2 text-body font-medium">
+                    <time dateTime={entry.watchedOn}>{formatDate(entry.watchedOn)}</time>
+                    {item.mediaType === 'tv' && entry.season !== null && (
+                      <span className="text-footnote text-label-secondary">
+                        {seasonLabel(entry.season)}
+                      </span>
+                    )}
+                    <RatingBadge rating={entry.rating} />
+                  </span>
+                  {entry.note && (
+                    <span className="whitespace-pre-wrap text-footnote text-label-secondary">
+                      {entry.note}
                     </span>
                   )}
-                  <RatingBadge rating={entry.rating} />
-                </span>
-                {entry.note && (
-                  <span className="whitespace-pre-wrap text-footnote text-label-secondary">
-                    {entry.note}
-                  </span>
-                )}
+                </div>
+                <button
+                  type="button"
+                  aria-label={`Edit watch on ${formatDate(entry.watchedOn)}`}
+                  onClick={() => setSheet({ open: true, mode: { kind: 'edit', entry } })}
+                  className="hit-target pressable flex items-center justify-center text-tint"
+                >
+                  <PencilSimple className="size-5" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Delete watch on ${formatDate(entry.watchedOn)}`}
+                  onClick={() => setPendingDelete(entry)}
+                  className="hit-target pressable flex items-center justify-center text-destructive"
+                >
+                  <Trash className="size-5" aria-hidden="true" />
+                </button>
               </div>
-              <button
-                type="button"
-                aria-label={`Edit watch on ${formatDate(entry.watchedOn)}`}
-                onClick={() => setSheet({ open: true, mode: { kind: 'edit', entry } })}
-                className="hit-target pressable flex items-center justify-center text-tint"
-              >
-                <PencilSimple className="size-5" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                aria-label={`Delete watch on ${formatDate(entry.watchedOn)}`}
-                onClick={() => setPendingDelete(entry)}
-                className="hit-target pressable flex items-center justify-center text-destructive"
-              >
-                <Trash className="size-5" aria-hidden="true" />
-              </button>
-            </div>
-          </li>
-        ))}
-      </InsetGroupedList>
+            </li>
+          ))}
+        </InsetGroupedList>
+      )}
 
       {title.data && <CastRow cast={title.data.cast} />}
       <TitleDetailsList
@@ -214,11 +248,27 @@ export function LibraryItemScreen() {
         productionCompanies={title.data?.productionCompanies}
         crew={title.data?.crew}
         releaseDate={item.releaseDate}
+        platforms={title.data?.platforms}
+        developers={title.data?.developers}
+        publishers={title.data?.publishers}
       />
 
       <InsetGroupedList>
+        {detail.steam && (
+          <Row
+            label="View on Steam"
+            detail={
+              detail.steam.lastPlayedAt
+                ? `Last played ${formatRelativeDate(detail.steam.lastPlayedAt.slice(0, 10), todayLocalDateString())}`
+                : undefined
+            }
+            href={detail.steam.storeUrl}
+            external
+            icon={<ArrowSquareOut className="size-5" aria-hidden="true" />}
+          />
+        )}
         <Row
-          label="View on TMDB"
+          label={item.mediaType === 'game' ? 'View on IGDB' : 'View on TMDB'}
           href={item.tmdbUrl}
           external
           icon={<ArrowSquareOut className="size-5" aria-hidden="true" />}

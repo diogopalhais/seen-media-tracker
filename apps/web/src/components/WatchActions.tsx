@@ -1,9 +1,11 @@
 import { CheckCircle, Clock, PlayCircle, Plus, Star } from '@phosphor-icons/react';
 import {
   formatEpisode,
+  formatPlaytime,
   type LibraryItemDetail,
   todayLocalDateString,
   type WatchMutationResponse,
+  watchVerb,
 } from '@seen/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -52,8 +54,14 @@ export function WatchActions({
   const [savedFlash, setSavedFlash] = useState(false);
   const entries = detail?.entries ?? [];
   const latest = entries[0];
+  const verb = watchVerb(target.mediaType);
   const progress = series?.standing.progress;
-  const status = progress ? progress.status : entries.length > 0 ? 'watched' : 'unwatched';
+  const plays = detail?.plays ?? [];
+  const status = progress
+    ? progress.status
+    : entries.length > 0 || plays.length > 0
+      ? 'watched'
+      : 'unwatched';
   const watched = status !== 'unwatched';
   const nextUp = progress?.nextUp ?? null;
   /** Season to open when behind: the next episode's, else the first season with something left. */
@@ -105,7 +113,7 @@ export function WatchActions({
   const ratedLabel = detail?.rating != null ? `${detail.rating}/10` : null;
 
   return (
-    <section className="flex w-full flex-col items-center gap-2" aria-label="Watched status">
+    <section className="flex w-full flex-col items-center gap-2" aria-label={`${verb.past} status`}>
       <div className="flex w-full max-w-md items-stretch justify-center gap-2">
         {!watched ? (
           <>
@@ -117,7 +125,7 @@ export function WatchActions({
               icon={<CheckCircle weight="bold" className="size-5" aria-hidden="true" />}
               onClick={() => void markWatched()}
             >
-              Mark Watched
+              Mark {verb.past}
             </Button>
             <Button
               variant="glass"
@@ -167,10 +175,10 @@ export function WatchActions({
                 className="pill flex-1"
                 icon={<CheckCircle weight="fill" className="size-5" aria-hidden="true" />}
                 onClick={() => setLogOpen(true)}
-                aria-label="Watched. Log another watch"
+                aria-label={`${verb.past}. Log another ${verb.noun}`}
                 data-status="watched"
               >
-                Watched
+                {verb.past}
               </Button>
             )}
             {entries.length > 0 ? (
@@ -235,16 +243,18 @@ export function WatchActions({
             ? status === 'watched' && latest
               ? `Watched ${formatDate(latest.watchedOn)} · ${progress.total} episodes`
               : standingText(series.standing)
-            : `${latest ? `Watched ${formatDate(latest.watchedOn)}` : 'Watched'}${
-                entries.length > 1 ? ` · ${entries.length} times` : ''
-              }`}
+            : latest
+              ? `${verb.past} ${formatDate(latest.watchedOn)}${entries.length > 1 ? ` · ${entries.length} times` : ''}`
+              : plays[0]
+                ? `${verb.past} ${formatDate(plays[0].playedOn)} · ${formatPlaytime(plays.reduce((n, p) => n + p.minutes, 0))} on Steam`
+                : verb.past}
           <span className="text-label-tertiary"> · </span>
           <button
             type="button"
             onClick={() => setLogOpen(true)}
             className="pressable font-medium text-label-secondary underline-offset-2 hover:underline"
           >
-            {entries.length > 0 ? 'Log another' : 'Log a watch'}
+            {entries.length > 0 ? 'Log another' : `Log a ${verb.noun}`}
           </button>
         </p>
       )}

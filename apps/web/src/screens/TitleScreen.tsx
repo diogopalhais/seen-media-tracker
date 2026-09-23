@@ -96,6 +96,7 @@ export function TitleScreen() {
         overview={t.overview}
         tmdbRating={t.tmdbRating}
         ownerRating={libraryItem.data?.rating ?? t.rating}
+        platforms={t.platforms}
         actions={
           <WatchActions
             target={{
@@ -141,6 +142,9 @@ export function TitleScreen() {
         productionCompanies={t.productionCompanies}
         crew={t.crew}
         releaseDate={t.releaseDate}
+        platforms={t.platforms}
+        developers={t.developers}
+        publishers={t.publishers}
       />
 
       <InsetGroupedList className="mt-3">

@@ -1,7 +1,7 @@
 import { CheckCircle } from '@phosphor-icons/react';
 import type { SearchResult } from '@seen/shared';
 import { Link } from 'react-router';
-import { Poster } from './Media.js';
+import { MediaTypeGlyph, Poster } from './Media.js';
 import { MediaCardText } from './MediaCardText.js';
 import { Skeleton } from './Skeleton.js';
 
@@ -9,7 +9,7 @@ export interface PosterRowProps {
   title: string;
   subtitle?: string;
   items: SearchResult[] | undefined;
-  /** Show the media type badge (for rows that mix movies and TV). */
+  /** Rows that mix kinds mark each poster with its kind glyph, as the library grid does. */
   mixed?: boolean;
   loading?: boolean;
   /** Tab root the cards link under (default `/search`). */
@@ -70,6 +70,7 @@ export function PosterRow({
                         <CheckCircle weight="fill" className="size-4" aria-hidden="true" />
                       </span>
                     )}
+                    {mixed && <MediaTypeGlyph mediaType={r.mediaType} />}
                   </div>
                   <MediaCardText
                     title={r.title}
@@ -82,7 +83,6 @@ export function PosterRow({
                       )
                     }
                     mediaType={r.mediaType}
-                    showType={mixed}
                     tmdbRating={r.tmdbRating}
                   />
                 </Link>

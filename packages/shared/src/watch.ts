@@ -42,6 +42,7 @@ export const LogWatchRequestSchema = z
     path: ['season'],
     message: 'Season can only be set for TV series',
   });
+// Movies and games are logged as a whole; only series carry a season.
 export type LogWatchRequest = z.infer<typeof LogWatchRequestSchema>;
 
 /** Partial update; `null` clears rating, season or note. Season validity against the item's type is checked server-side. */

@@ -76,6 +76,8 @@ describe('WatchActions', () => {
           watchCount: 1,
           entries: [entry('e1', '2026-09-11', null)],
           episodeWatches: [],
+          plays: [],
+          steam: null,
           muted: false,
         }}
       />,
@@ -98,6 +100,8 @@ describe('WatchActions', () => {
           watchCount: 2,
           entries: [entry('e2', '2026-09-11', 7), entry('e1', '2026-08-01', null)],
           episodeWatches: [],
+          plays: [],
+          steam: null,
           muted: false,
         }}
       />,
@@ -161,6 +165,8 @@ describe('WatchActions for a series', () => {
       watchCount: entries.length,
       entries,
       episodeWatches: watches,
+      plays: [],
+      steam: null,
       muted: false,
     };
     return { standing, detail };

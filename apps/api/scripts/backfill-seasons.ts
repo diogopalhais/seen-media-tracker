@@ -8,7 +8,6 @@ import { loadConfig } from '../src/config.js';
 import { createPostgresDb } from '../src/db/client.js';
 import { mediaItems } from '../src/db/schema.js';
 import { LibraryRepository } from '../src/services/library.js';
-import { detailsFor } from '../src/services/metadata/provider.js';
 import { TmdbProvider } from '../src/services/metadata/tmdb.js';
 
 const CONCURRENCY = 4;
@@ -32,7 +31,7 @@ async function main(): Promise<void> {
     Array.from({ length: CONCURRENCY }, async () => {
       for (let row = queue.shift(); row; row = queue.shift()) {
         try {
-          await library.upsertItem(await detailsFor(provider, 'tv', row.tmdbId), new Date());
+          await library.upsertItem(await provider.tvDetails(row.tmdbId), new Date());
           done++;
         } catch (err) {
           failed++;

@@ -7,6 +7,7 @@ import {
   TmdbRatingSchema,
 } from './media.js';
 import { RatingSchema } from './rating.js';
+import { PlaySessionSchema, SteamLinkSchema } from './steam.js';
 import { EpisodeWatchSchema, WatchEntrySchema } from './watch.js';
 
 export const EpisodePointerSchema = z.object({
@@ -72,6 +73,8 @@ export const LibraryItemSummarySchema = z.object({
   /** Number of season/series logs; 0 when the title is tracked only by episodes. */
   watchCount: z.number().int().min(0),
   episodesWatched: z.number().int().min(0),
+  /** Games: minutes recorded from connected accounts; 0 otherwise. */
+  minutesPlayed: z.number().int().min(0),
   lastSeason: z.number().int().nullable(),
   /** Null for movies, for muted series and for series with nothing new or upcoming. */
   release: ReleaseAlertSchema.nullable(),
@@ -101,6 +104,10 @@ export const LibraryItemDetailSchema = z.object({
   entries: z.array(WatchEntrySchema),
   /** Season-episode ordered. */
   episodeWatches: z.array(EpisodeWatchSchema),
+  /** Games: play time recorded from connected accounts, newest first. */
+  plays: z.array(PlaySessionSchema),
+  /** Games: the owner's Steam record for this title, when linked. */
+  steam: SteamLinkSchema.nullable(),
   muted: z.boolean(),
 });
 export type LibraryItemDetail = z.infer<typeof LibraryItemDetailSchema>;

@@ -12,6 +12,8 @@ Planning artifacts (proposal, specs, design, tasks per change) live in `openspec
 
 ## Features
 
+- **Games too**: with IGDB credentials, search games, browse trending and acclaimed releases, log plays and rate them like anything else. Covers, platforms, developers and publishers come from IGDB.
+- **Steam play time**: connect your Steam account and your whole Steam history lands in the library on the first sync, then every hour of new play becomes a play session on the game, with total hours and last played.
 - **Library**: poster grid of everything you have seen, filter by type, sort by recent, title or rating. Series you follow surface in a "New & upcoming" shelf when an episode aired that you have not watched, or airs within two weeks.
 - **One-tap watched**: "Mark Watched" logs today; rating is optional and inline. Log again for rewatches, with date, season and a private note.
 - **Episode tracking**: tick episodes individually, "Watched up to here", mark a whole season, and a Continue Watching card that knows where you stopped. Unaired episodes cannot be marked.
@@ -89,8 +91,10 @@ Useful scripts:
 | `CORS_ORIGINS` | yes | Comma-separated web app origins, e.g. `https://seen.example.com` |
 | `TRUST_PROXY` | no (`0`) | Set `1` behind Coolify/Traefik so `X-Forwarded-For` is trusted for rate limiting |
 | `TMDB_LANGUAGE` | no (`en-US`) | Language for titles and overviews |
+| `IGDB_CLIENT_ID`, `IGDB_CLIENT_SECRET` | no (both or none) | Enable video games via [IGDB](https://api-docs.igdb.com/): register an application in the [Twitch developer console](https://dev.twitch.tv/console) (Confidential client) and copy its Client ID and a Client Secret. The API exchanges them for a token itself. Without them the web app hides everything game related. |
 | `PORT` | no (`3000`) | Listen port |
 | `LOG_LEVEL` | no (`info`) | pino level |
+| `STEAM_API_KEY`, `STEAM_ID` | no (both or none) | Sync your Steam play time into the library (needs IGDB for the game catalogue). Register a key at [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey) (any domain, `localhost` is fine) and use your 17-digit SteamID64. |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | no (all three or none) | Enable Web Push new-episode notifications. Generate keys with `pnpm --filter @seen/api vapid`; the subject is `mailto:you@example.com` or your site URL. Treat the private key as a secret and back it up: rotating it silently disables every device until it re-enables notifications. |
 | `MIGRATIONS_DIR` | no | Override the migrations folder location |
 
@@ -227,7 +231,7 @@ All routes are under `/api/v1`; errors are `{ "error": { "code", "message", "det
 | POST | `/auth/logout` | Bearer | Revoke the current session |
 | GET | `/auth/session` | Bearer | `{ authenticated: true, expiresAt }` |
 | GET | `/search?q=&type=all|movie|tv&page=` | Bearer | TMDB search with library membership flags |
-| GET | `/titles/:mediaType/:tmdbId` | Bearer | Title details: seasons, cast and crew, networks and studios, status, last/next episode |
+| GET | `/titles/:mediaType/:tmdbId` | Bearer | Title details: seasons, cast and crew, networks and studios, status, last/next episode; for `game` the id is IGDB's, with platforms, developers and publishers |
 | POST | `/watches` | Bearer | Log a watch `{ mediaType, tmdbId, watchedOn, rating?, season?, note? }` |
 | PATCH | `/watches/:id` | Bearer | Edit a watch (`null` clears rating/season/note) |
 | DELETE | `/watches/:id` | Bearer | Delete a watch (removes the title when it was the last one) |
@@ -235,6 +239,9 @@ All routes are under `/api/v1`; errors are `{ "error": { "code", "message", "det
 | GET | `/library/:id` | Bearer | Item with full history |
 | GET | `/library/releases` | Bearer | Series with a new unwatched episode (last 30 days) or an upcoming one (next 14 days), muted series excluded; refreshes stale snapshots of running series first |
 | PATCH | `/library/:id` | Bearer | Follow or mute a series `{ muted }`: muted series get no release alerts and no notifications |
+| GET | `/steam/status` | Bearer | Steam account name, what is playing now, how many played games are linked, last sync |
+| POST | `/steam/sync` | Bearer | Record play time since the last sync as play sessions; a game seen for the first time brings its whole total, dated on its last-played day |
+| POST | `/steam/import` | Bearer | Ask IGDB again about played games it did not know and record any hours still missing; idempotent |
 | GET | `/push/config` | Bearer | Whether Web Push is configured, and the VAPID public key |
 | PUT / DELETE | `/push/subscriptions` | Bearer | Register or remove this device's push subscription |
 | POST | `/push/test` | Bearer | Send a test notification to every registered device |

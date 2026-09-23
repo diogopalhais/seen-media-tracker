@@ -24,6 +24,7 @@ export const queryKeys = {
   discover: ['discover'] as const,
   season: (id: number, n: number) => ['season', id, n] as const,
   pushConfig: ['push-config'] as const,
+  steamStatus: ['steam-status'] as const,
 };
 
 export function useSessionQuery(enabled: boolean) {
@@ -34,6 +35,43 @@ export function useSessionQuery(enabled: boolean) {
     staleTime: 5 * 60_000,
     retry: false,
   });
+}
+
+export function useSteamStatusQuery(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.steamStatus,
+    queryFn: api.steamStatus,
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Runs a Steam sync or a full history import; the library and the Steam status refresh afterwards. */
+export function useSteamSyncMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (kind: 'sync' | 'import') =>
+      kind === 'import' ? api.steamImport() : api.steamSync(),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.libraryAll }),
+        qc.invalidateQueries({ queryKey: queryKeys.steamStatus }),
+        qc.invalidateQueries({ queryKey: ['library-item'] }),
+      ]);
+    },
+  });
+}
+
+/** Whether this deployment offers games (IGDB configured). Optimistic until the session is known. */
+export function useGamesEnabled(): boolean {
+  const session = useSessionQuery(true);
+  return session.data?.features.games ?? true;
+}
+
+/** Whether the owner's Steam account is connected on the server. False until the session is known. */
+export function useSteamEnabled(): boolean {
+  const session = useSessionQuery(true);
+  return session.data?.features.steam ?? false;
 }
 
 export function useLibraryQuery(filters: { type: MediaTypeFilter; sort: LibrarySort }) {

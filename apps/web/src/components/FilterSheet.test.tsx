@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_FILTERS, FilterSheet, isDefaultFilters } from './FilterSheet.js';
 
 describe('FilterSheet', () => {
-  it('applies a type and closes, keeps open for sort, and offers a reset when non-default', async () => {
+  it('changes the sort without closing and offers a reset when non-default', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     const onOpenChange = vi.fn();
@@ -16,14 +16,11 @@ describe('FilterSheet', () => {
         onChange={onChange}
       />,
     );
-    expect(screen.getByRole('dialog', { name: 'Filter & Sort' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Sort' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reset to defaults' })).toBeNull();
+    // The media type moved to the chips above the grid.
+    expect(screen.queryByRole('radio', { name: 'TV' })).toBeNull();
 
-    await user.click(screen.getByRole('radio', { name: 'TV' }));
-    expect(onChange).toHaveBeenLastCalledWith({ type: 'tv', sort: 'recent' });
-    expect(onOpenChange).toHaveBeenCalledWith(false);
-
-    onOpenChange.mockClear();
     await user.click(screen.getByRole('radio', { name: 'Rating' }));
     expect(onChange).toHaveBeenLastCalledWith({ type: 'all', sort: 'rating' });
     expect(onOpenChange).not.toHaveBeenCalledWith(false);

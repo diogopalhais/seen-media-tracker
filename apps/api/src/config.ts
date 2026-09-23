@@ -72,6 +72,16 @@ export const EnvSchema = z.object({
     .string()
     .regex(/^[a-z]{2}(-[A-Z]{2})?$/, 'TMDB_LANGUAGE must look like en-US')
     .default('en-US'),
+  /** IGDB via Twitch OAuth; both or neither. Without them games are simply not offered. */
+  IGDB_CLIENT_ID: z.string().trim().min(1).optional(),
+  IGDB_CLIENT_SECRET: z.string().trim().min(1).optional(),
+  /** Steam Web API key and the owner's SteamID64; both or neither. */
+  STEAM_API_KEY: z.string().trim().min(1).optional(),
+  STEAM_ID: z
+    .string()
+    .trim()
+    .regex(/^\d{17}$/, 'STEAM_ID must be the 17-digit SteamID64')
+    .optional(),
   CORS_ORIGINS: originList,
   TRUST_PROXY: booleanFlag,
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
@@ -105,6 +115,32 @@ export function vapidConfig(
   };
 }
 
+export interface IgdbConfig {
+  clientId: string;
+  clientSecret: string;
+}
+
+/** IGDB credentials, or null when games are not configured. Partial configuration is rejected by `loadConfig`. */
+export function igdbConfig(
+  config: Pick<Config, 'IGDB_CLIENT_ID' | 'IGDB_CLIENT_SECRET'>,
+): IgdbConfig | null {
+  if (!config.IGDB_CLIENT_ID || !config.IGDB_CLIENT_SECRET) return null;
+  return { clientId: config.IGDB_CLIENT_ID, clientSecret: config.IGDB_CLIENT_SECRET };
+}
+
+export interface SteamConfig {
+  apiKey: string;
+  steamId: string;
+}
+
+/** Steam credentials, or null when the Steam sync is not configured. */
+export function steamConfig(
+  config: Pick<Config, 'STEAM_API_KEY' | 'STEAM_ID'>,
+): SteamConfig | null {
+  if (!config.STEAM_API_KEY || !config.STEAM_ID) return null;
+  return { apiKey: config.STEAM_API_KEY, steamId: config.STEAM_ID };
+}
+
 export class ConfigError extends Error {
   constructor(readonly problems: string[]) {
     super(`Invalid configuration:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
@@ -128,6 +164,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (setCount > 0 && setCount < 3) {
     throw new ConfigError([
       'VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT must be set together (generate keys with `pnpm --filter @seen/api vapid`) or all left unset to disable push',
+    ]);
+  }
+  if (Boolean(parsed.data.IGDB_CLIENT_ID) !== Boolean(parsed.data.IGDB_CLIENT_SECRET)) {
+    throw new ConfigError([
+      'IGDB_CLIENT_ID and IGDB_CLIENT_SECRET must be set together or both left unset to disable games',
+    ]);
+  }
+  if (Boolean(parsed.data.STEAM_API_KEY) !== Boolean(parsed.data.STEAM_ID)) {
+    throw new ConfigError([
+      'STEAM_API_KEY and STEAM_ID must be set together or both left unset to disable the Steam sync',
     ]);
   }
   return parsed.data;

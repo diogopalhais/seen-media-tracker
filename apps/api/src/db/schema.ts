@@ -16,7 +16,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-export const mediaTypeEnum = pgEnum('media_type', ['movie', 'tv']);
+export const mediaTypeEnum = pgEnum('media_type', ['movie', 'tv', 'game']);
 
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
@@ -28,7 +28,10 @@ export const mediaItems = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     mediaType: mediaTypeEnum('media_type').notNull(),
+    // Provider id: TMDB for movies and series, IGDB for games (column name predates games).
     tmdbId: integer('tmdb_id').notNull(),
+    // Provider page for titles whose URL cannot be derived from the id (IGDB uses slugs).
+    externalUrl: text('external_url'),
     title: text('title').notNull(),
     originalTitle: text('original_title').notNull(),
     releaseYear: integer('release_year'),
@@ -108,6 +111,49 @@ export const episodeWatches = pgTable(
   ],
 );
 
+/**
+ * Snapshot of the owner's Steam library, one row per app. Play time deltas between syncs become
+ * play sessions on the linked title; unmatched apps stay here with no title.
+ */
+export const steamGames = pgTable(
+  'steam_games',
+  {
+    appId: integer('app_id').primaryKey(),
+    name: text('name').notNull(),
+    iconHash: text('icon_hash'),
+    minutesTotal: integer('minutes_total').notNull().default(0),
+    minutesRecent: integer('minutes_recent').notNull().default(0),
+    lastPlayedAt: timestamp('last_played_at', { withTimezone: true, mode: 'date' }),
+    mediaItemId: uuid('media_item_id').references(() => mediaItems.id, { onDelete: 'set null' }),
+    // Set once a match was attempted at IGDB, so unmatched apps are not looked up every hour.
+    matchedAt: timestamp('matched_at', { withTimezone: true, mode: 'date' }),
+    // Minutes already turned into play sessions; the remainder is imported by a history import.
+    minutesRecorded: integer('minutes_recorded').notNull().default(0),
+    syncedAt: timestamp('synced_at', { withTimezone: true, mode: 'date' }).notNull(),
+  },
+  (t) => [index('steam_games_item_idx').on(t.mediaItemId)],
+);
+
+/** Time spent in a game on one day from one source; same-day rows merge. Counts as library activity. */
+export const playSessions = pgTable(
+  'play_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    mediaItemId: uuid('media_item_id')
+      .notNull()
+      .references(() => mediaItems.id, { onDelete: 'cascade' }),
+    source: text('source').notNull(),
+    playedOn: date('played_on', { mode: 'string' }).notNull(),
+    minutes: integer('minutes').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('play_sessions_item_source_day_uidx').on(t.mediaItemId, t.source, t.playedOn),
+    index('play_sessions_played_idx').on(t.playedOn.desc(), t.createdAt.desc()),
+    check('play_sessions_minutes_check', sql`${t.minutes} >= 0`),
+  ],
+);
+
 export const sessions = pgTable(
   'sessions',
   {
@@ -145,3 +191,5 @@ export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
 export type WatchEntryRow = typeof watchEntries.$inferSelect;
 export type SessionRow = typeof sessions.$inferSelect;
 export type EpisodeWatchRow = typeof episodeWatches.$inferSelect;
+export type SteamGameRow = typeof steamGames.$inferSelect;
+export type PlaySessionRow = typeof playSessions.$inferSelect;

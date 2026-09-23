@@ -12,15 +12,18 @@ import {
   type MediaItem,
   type MediaType,
   type MediaTypeFilter,
+  mediaBackdropUrl,
+  mediaPosterUrl,
+  mediaTitleUrl,
+  type PlaySession,
   type PublicRecentItem,
   RELEASE_NEW_WINDOW_DAYS,
   RELEASE_UPCOMING_WINDOW_DAYS,
   RELEASES_LIMIT,
   type ReleaseAlert,
   type Season,
-  tmdbBackdropUrl,
-  tmdbPosterUrl,
-  tmdbTitleUrl,
+  type SteamLink,
+  steamStoreUrl,
   toTmdbRating,
   type UpdateWatchRequest,
   type WatchEntry,
@@ -44,6 +47,9 @@ import {
   episodeWatches,
   type MediaItemRow,
   mediaItems,
+  type PlaySessionRow,
+  playSessions,
+  steamGames,
   type WatchEntryRow,
   watchEntries,
 } from '../db/schema.js';
@@ -72,14 +78,14 @@ export function toMediaItem(row: MediaItemRow): MediaItem {
     originalTitle: row.originalTitle,
     releaseYear: row.releaseYear,
     releaseDate: row.releaseDate,
-    posterUrl: tmdbPosterUrl(row.posterPath),
-    backdropUrl: tmdbBackdropUrl(row.backdropPath),
+    posterUrl: mediaPosterUrl(row.mediaType, row.posterPath),
+    backdropUrl: mediaBackdropUrl(row.mediaType, row.backdropPath),
     overview: row.overview,
     genres: row.genres,
     runtimeMinutes: row.runtimeMinutes,
     numberOfSeasons: row.numberOfSeasons,
     tmdbRating: toTmdbRating(row.tmdbVoteAverage, row.tmdbVoteCount),
-    tmdbUrl: tmdbTitleUrl(row.mediaType, row.tmdbId),
+    tmdbUrl: mediaTitleUrl(row.mediaType, row.tmdbId, row.externalUrl),
     status: row.status,
     lastEpisodeToAir: episodeRef(
       row.lastEpisodeSeason,
@@ -95,6 +101,17 @@ export function toMediaItem(row: MediaItemRow): MediaItem {
     ),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export function toPlaySession(row: PlaySessionRow): PlaySession {
+  return {
+    id: row.id,
+    mediaItemId: row.mediaItemId,
+    source: row.source as PlaySession['source'],
+    playedOn: row.playedOn,
+    minutes: row.minutes,
+    createdAt: row.createdAt.toISOString(),
   };
 }
 
@@ -131,11 +148,12 @@ const displayedRating = () => sql<number | null>`(
   where w.media_item_id = ${itemId} and w.rating is not null
   order by w.watched_on desc, w.created_at desc limit 1)`;
 
-/** Most recent activity across season/series logs and episode watches. */
+/** Most recent activity across season/series logs, episode watches and play sessions. */
 const lastWatchedOn = () => sql<string>`(
   select greatest(
     (select max(w.watched_on) from ${watchEntries} w where w.media_item_id = ${itemId}),
-    (select max(ew.watched_on) from ${episodeWatches} ew where ew.media_item_id = ${itemId})
+    (select max(ew.watched_on) from ${episodeWatches} ew where ew.media_item_id = ${itemId}),
+    (select max(ps.played_on) from ${playSessions} ps where ps.media_item_id = ${itemId})
   )::text)`;
 
 const watchCount = () => sql<number>`(
@@ -144,9 +162,13 @@ const watchCount = () => sql<number>`(
 const episodesWatched = () => sql<number>`(
   select count(*)::int from ${episodeWatches} ew where ew.media_item_id = ${itemId})`;
 
+const minutesPlayed = () => sql<number>`(
+  select coalesce(sum(ps.minutes), 0)::int from ${playSessions} ps where ps.media_item_id = ${itemId})`;
+
 const hasActivity = () => sql`(
   exists (select 1 from ${watchEntries} w where w.media_item_id = ${itemId})
-  or exists (select 1 from ${episodeWatches} ew where ew.media_item_id = ${itemId}))`;
+  or exists (select 1 from ${episodeWatches} ew where ew.media_item_id = ${itemId})
+  or exists (select 1 from ${playSessions} ps where ps.media_item_id = ${itemId}))`;
 
 const lastSeason = () => sql<number | null>`(
   select w.season from ${watchEntries} w where w.media_item_id = ${itemId}
@@ -194,7 +216,7 @@ export function decodeCursor(cursor: string | undefined): number {
   }
 }
 
-/** Removes an item that has neither logs nor episode watches. Returns true when removed. */
+/** Removes an item that has neither logs, episode watches nor play sessions. Returns true when removed. */
 async function removeItemIfInactive(
   tx: Pick<Db, 'select' | 'delete'>,
   itemId: string,
@@ -207,7 +229,11 @@ async function removeItemIfInactive(
     .select({ n: sql<number>`count(*)::int` })
     .from(episodeWatches)
     .where(eq(episodeWatches.mediaItemId, itemId));
-  if ((entries?.n ?? 0) === 0 && (episodes?.n ?? 0) === 0) {
+  const [plays] = await tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(playSessions)
+    .where(eq(playSessions.mediaItemId, itemId));
+  if ((entries?.n ?? 0) === 0 && (episodes?.n ?? 0) === 0 && (plays?.n ?? 0) === 0) {
     await tx.delete(mediaItems).where(eq(mediaItems.id, itemId));
     return true;
   }
@@ -263,6 +289,7 @@ export class LibraryRepository {
     const values = {
       mediaType: details.mediaType,
       tmdbId: details.tmdbId,
+      externalUrl: details.externalUrl,
       title: details.title,
       originalTitle: details.originalTitle,
       releaseYear: releaseYear(details.releaseDate),
@@ -298,6 +325,7 @@ export class LibraryRepository {
       .onConflictDoUpdate({
         target: [mediaItems.mediaType, mediaItems.tmdbId],
         set: {
+          externalUrl: values.externalUrl,
           title: values.title,
           originalTitle: values.originalTitle,
           releaseYear: values.releaseYear,
@@ -496,8 +524,57 @@ export class LibraryRepository {
       watchCount: entries.length,
       entries: entries.map(toWatchEntry),
       episodeWatches: await this.episodeWatchesFor(itemId),
+      plays: await this.playSessionsFor(itemId),
+      steam: await this.steamLinkFor(itemId),
       muted: item.row.mutedAt !== null,
     };
+  }
+
+  async playSessionsFor(itemId: string): Promise<PlaySession[]> {
+    const rows = await this.db
+      .select()
+      .from(playSessions)
+      .where(eq(playSessions.mediaItemId, itemId))
+      .orderBy(desc(playSessions.playedOn), desc(playSessions.createdAt));
+    return rows.map(toPlaySession);
+  }
+
+  private async steamLinkFor(itemId: string): Promise<SteamLink | null> {
+    const [row] = await this.db
+      .select()
+      .from(steamGames)
+      .where(eq(steamGames.mediaItemId, itemId))
+      .orderBy(desc(steamGames.minutesTotal))
+      .limit(1);
+    if (!row) return null;
+    return {
+      appId: row.appId,
+      minutesTotal: row.minutesTotal,
+      minutesRecent: row.minutesRecent,
+      lastPlayedAt: row.lastPlayedAt?.toISOString() ?? null,
+      storeUrl: steamStoreUrl(row.appId),
+    };
+  }
+
+  /**
+   * Records time in a game on a day. A second session on the same day from the same source adds
+   * to the first. Returns the resulting row.
+   */
+  async addPlaySession(
+    itemId: string,
+    input: { source: PlaySession['source']; playedOn: string; minutes: number },
+    now: Date,
+  ): Promise<PlaySessionRow> {
+    const [row] = await this.db
+      .insert(playSessions)
+      .values({ mediaItemId: itemId, ...input, createdAt: now })
+      .onConflictDoUpdate({
+        target: [playSessions.mediaItemId, playSessions.source, playSessions.playedOn],
+        set: { minutes: sql`${playSessions.minutes} + ${input.minutes}` },
+      })
+      .returning();
+    if (!row) throw new Error('play session upsert returned no row');
+    return row;
   }
 
   /** Stops (or resumes) following a series: muted series get no release alerts and no notifications. */
@@ -600,6 +677,7 @@ export class LibraryRepository {
         lastWatchedOn: lastWatchedOn(),
         watchCount: watchCount(),
         episodesWatched: episodesWatched(),
+        minutesPlayed: minutesPlayed(),
         lastSeason: lastSeason(),
         newEpisode: hasNewEpisode(today),
         upcoming: hasUpcomingEpisode(today),
@@ -646,12 +724,13 @@ export class LibraryRepository {
         tmdbId: r.tmdbId,
         title: r.title,
         releaseYear: r.releaseYear,
-        posterUrl: tmdbPosterUrl(r.posterPath),
+        posterUrl: mediaPosterUrl(r.mediaType, r.posterPath),
         rating: r.rating,
         tmdbRating: toTmdbRating(r.tmdbVoteAverage, r.tmdbVoteCount),
         lastWatchedOn: r.lastWatchedOn,
         watchCount: r.watchCount,
         episodesWatched: r.episodesWatched,
+        minutesPlayed: r.minutesPlayed,
         lastSeason: r.lastSeason,
         release,
         progress: progress.get(r.id) ?? null,
@@ -786,10 +865,13 @@ export class LibraryRepository {
       select w.media_item_id, w.watched_on, w.created_at, w.season, null::int as episode from ${watchEntries} w
       union all
       select ew.media_item_id, ew.watched_on, ew.created_at, ew.season_number, ew.episode_number from ${episodeWatches} ew
+      union all
+      select ps.media_item_id, ps.played_on, ps.created_at, null::int, null::int from ${playSessions} ps
     )`;
     const rows = await this.db.execute(sql`
       select ${mediaItems}.media_type as media_type, ${mediaItems}.tmdb_id as tmdb_id, ${mediaItems}.title as title,
         ${mediaItems}.release_year as release_year, ${mediaItems}.poster_path as poster_path,
+        ${mediaItems}.external_url as external_url,
         ${displayedRating()} as rating,
         latest.watched_on::text as watched_on, latest.season as season, latest.episode as episode
       from (
@@ -803,15 +885,19 @@ export class LibraryRepository {
       limit ${limit}`);
     const list = Array.isArray(rows) ? rows : ((rows as unknown as { rows: unknown[] }).rows ?? []);
     return (list as unknown as Array<Record<string, unknown>>).map((r) => ({
-      mediaType: r.media_type as 'movie' | 'tv',
+      mediaType: r.media_type as MediaType,
       title: r.title as string,
       year: (r.release_year as number | null) ?? null,
-      posterUrl: tmdbPosterUrl(r.poster_path as string | null),
+      posterUrl: mediaPosterUrl(r.media_type as MediaType, r.poster_path as string | null),
       rating: (r.rating as number | null) ?? null,
       watchedOn: r.watched_on as string,
       season: r.media_type === 'tv' ? ((r.season as number | null) ?? null) : null,
       episode: r.media_type === 'tv' ? ((r.episode as number | null) ?? null) : null,
-      tmdbUrl: tmdbTitleUrl(r.media_type as 'movie' | 'tv', r.tmdb_id as number),
+      tmdbUrl: mediaTitleUrl(
+        r.media_type as MediaType,
+        r.tmdb_id as number,
+        (r.external_url as string | null) ?? null,
+      ),
     }));
   }
 }

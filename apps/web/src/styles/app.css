@@ -29,6 +29,10 @@
   --warning: #f0a020;
   --star: #f5b400;
   --gray: #8a8a8f;
+  /* One flat, desaturated accent per media kind (slate violet, muted teal, sand). Always paired with a glyph and a label. */
+  --kind-movie: #6b67b5;
+  --kind-tv: #4a97a8;
+  --kind-game: #c48a45;
   --bar-bg: rgba(242, 242, 246, 0.78);
   --glass: rgba(255, 255, 255, 0.72);
   --glass-border: rgba(255, 255, 255, 0.7);
@@ -63,6 +67,9 @@
     --warning: #ffb340;
     --star: #ffd60a;
     --gray: #8a8a8f;
+    --kind-movie: #8b87d3;
+    --kind-tv: #6cb9ca;
+    --kind-game: #d8a566;
     --bar-bg: rgba(13, 13, 15, 0.72);
     --glass: rgba(30, 30, 34, 0.62);
     --glass-border: rgba(255, 255, 255, 0.1);
@@ -97,6 +104,9 @@
   --warning: #ffb340;
   --star: #ffd60a;
   --gray: #8a8a8f;
+  --kind-movie: #8b87d3;
+  --kind-tv: #6cb9ca;
+  --kind-game: #d8a566;
   --bar-bg: rgba(13, 13, 15, 0.72);
   --glass: rgba(30, 30, 34, 0.62);
   --glass-border: rgba(255, 255, 255, 0.1);
@@ -132,6 +142,9 @@
   --color-warning: var(--warning);
   --color-star: var(--star);
   --color-gray: var(--gray);
+  --color-kind-movie: var(--kind-movie);
+  --color-kind-tv: var(--kind-tv);
+  --color-kind-game: var(--kind-game);
   --color-bar: var(--bar-bg);
   --color-overlay: var(--overlay);
   --color-card-border: var(--card-border);

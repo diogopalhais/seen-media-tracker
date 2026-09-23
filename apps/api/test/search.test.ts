@@ -82,6 +82,104 @@ describe('GET /api/v1/search', () => {
   });
 });
 
+describe('games', () => {
+  it('searches games as their own type and never inside `all`', async () => {
+    const games = await json(await ctx.request('/api/v1/search?q=hades&type=game', { token }));
+    expect(games.results).toHaveLength(1);
+    expect(games.results[0]).toMatchObject({
+      mediaType: 'game',
+      tmdbId: 113112,
+      title: 'Hades',
+      releaseYear: 2020,
+      posterUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/co2i2c.jpg',
+      tmdbRating: { average: 9.2, count: 1500 },
+      inLibrary: false,
+    });
+    const all = await json(await ctx.request('/api/v1/search?q=hades&type=all', { token }));
+    expect(all.results).toEqual([]);
+    expect(ctx.provider.calls.filter((c) => c.startsWith('searchGames'))).toHaveLength(1);
+  });
+
+  it('returns game details with platforms, studios and the IGDB page', async () => {
+    const res = await ctx.request('/api/v1/titles/game/113112', { token });
+    expect(res.status).toBe(200);
+    const body = await json(res);
+    expect(body).toMatchObject({
+      mediaType: 'game',
+      title: 'Hades',
+      releaseDate: '2020-09-17',
+      status: 'Released',
+      seasons: null,
+      runtimeMinutes: null,
+      backdropUrl: 'https://images.igdb.com/igdb/image/upload/t_1080p/sc7wq1.jpg',
+      tmdbUrl: 'https://www.igdb.com/games/hades--1',
+      cast: [],
+      networks: [],
+      productionCompanies: [],
+    });
+    expect(body.platforms.map((p: any) => p.name)).toEqual(['PC', 'Switch']);
+    expect(body.platforms[1].logoUrl).toBe(
+      'https://images.igdb.com/igdb/image/upload/t_cover_big/pl6f.jpg',
+    );
+    expect(body.developers[0].name).toBe('Supergiant Games');
+    expect(body.publishers[0].name).toBe('Supergiant Games');
+    expect((await ctx.request('/api/v1/titles/game/1', { token })).status).toBe(404);
+  });
+
+  it('logs a play, lists it under the game filter and shows it in the public feed', async () => {
+    const { status, body } = await logWatch(ctx, token, {
+      mediaType: 'game',
+      tmdbId: 119133,
+      watchedOn: '2026-09-20',
+      rating: 10,
+    });
+    expect(status).toBe(201);
+    expect(body.item).toMatchObject({
+      mediaType: 'game',
+      title: 'Elden Ring',
+      releaseYear: 2022,
+      posterUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big_2x/co4jni.jpg',
+      tmdbUrl: 'https://www.igdb.com/games/elden-ring',
+      numberOfSeasons: null,
+    });
+    // A season makes no sense on a game.
+    expect(
+      (
+        await logWatch(ctx, token, {
+          mediaType: 'game',
+          tmdbId: 119133,
+          watchedOn: '2026-09-20',
+          season: 1,
+        })
+      ).status,
+    ).toBe(400);
+
+    const games = await json(await ctx.request('/api/v1/library?type=game', { token }));
+    expect(games.items.map((i: any) => i.title)).toEqual(['Elden Ring']);
+    expect(games.items[0]).toMatchObject({ progress: null, release: null, muted: false });
+    const movies = await json(await ctx.request('/api/v1/library?type=movie', { token }));
+    expect(movies.items.some((i: any) => i.mediaType === 'game')).toBe(false);
+
+    const feed = await json(await ctx.request('/api/v1/public/recent?type=game'));
+    expect(feed.items[0]).toMatchObject({
+      mediaType: 'game',
+      title: 'Elden Ring',
+      rating: 10,
+      season: null,
+      episode: null,
+      tmdbUrl: 'https://www.igdb.com/games/elden-ring',
+    });
+    // Search now flags it as in the library.
+    const hit = await json(await ctx.request('/api/v1/search?q=elden&type=game', { token }));
+    expect(hit.results[0]).toMatchObject({ inLibrary: true, libraryItemId: body.item.id });
+  });
+
+  it('reports the games feature on the session', async () => {
+    const body = await json(await ctx.request('/api/v1/auth/session', { token }));
+    expect(body.features).toEqual({ games: true, steam: true });
+  });
+});
+
 describe('GET /api/v1/titles/:mediaType/:tmdbId', () => {
   it('returns movie details without seasons', async () => {
     const res = await ctx.request('/api/v1/titles/movie/438631', { token });

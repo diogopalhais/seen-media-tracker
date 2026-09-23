@@ -123,4 +123,31 @@ export class CachedMetadataProvider implements MetadataProvider {
       this.inner.tvSeason(tmdbId, seasonNumber),
     );
   }
+
+  searchGames(query: string, page: number): Promise<ProviderSearchPage> {
+    return this.cached(this.searches, `game:${page}:${query.toLowerCase()}`, SEARCH_TTL_MS, () =>
+      this.inner.searchGames(query, page),
+    );
+  }
+
+  gameDetails(igdbId: number): Promise<ProviderTitleDetails> {
+    return this.cached(this.details, `game:${igdbId}`, DETAILS_TTL_MS, () =>
+      this.inner.gameDetails(igdbId),
+    );
+  }
+
+  trendingGames(): Promise<ProviderSearchResult[]> {
+    return this.cached(this.lists, 'trending:game', DETAILS_TTL_MS, () =>
+      this.inner.trendingGames(),
+    );
+  }
+
+  topGames(): Promise<ProviderSearchResult[]> {
+    return this.cached(this.lists, 'top:game', DETAILS_TTL_MS, () => this.inner.topGames());
+  }
+
+  /** Id mappings are looked up once per app by the Steam sync; nothing to cache. */
+  gamesBySteamAppIds(appIds: number[]): Promise<Map<number, number>> {
+    return this.inner.gamesBySteamAppIds(appIds);
+  }
 }

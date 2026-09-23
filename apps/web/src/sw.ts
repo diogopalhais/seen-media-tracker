@@ -31,9 +31,9 @@ self.addEventListener('message', (event) => {
   if ((event.data as { type?: string } | null)?.type === 'SKIP_WAITING') void self.skipWaiting();
 });
 
-// Posters, backdrops and stills: cache first, bounded.
+// Posters, covers, backdrops and stills (TMDB and IGDB): cache first, bounded.
 registerRoute(
-  ({ url }) => url.hostname === 'image.tmdb.org',
+  ({ url }) => url.hostname === 'image.tmdb.org' || url.hostname === 'images.igdb.com',
   new CacheFirst({
     cacheName: 'tmdb-images',
     plugins: [
